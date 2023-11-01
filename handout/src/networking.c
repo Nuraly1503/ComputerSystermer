@@ -80,6 +80,14 @@ void get_signature(char* password, char* salt, hashdata_t* hash)
 {
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
+    
+    // created salted password string
+    char salted[strlen(password) + strlen(salt)];
+    strcpy(salted, strcat(password, salt));
+    //printf("Salted: %s\n", salted);
+    
+    // hash salted to make signature
+    get_data_sha(salted, *(hash), sizeof(salted), SHA256_HASH_SIZE);
 }
 
 /*
@@ -90,6 +98,19 @@ void register_user(char* username, char* password, char* salt)
 {
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
+    
+    // struct for pass and salt
+    // PasswordAndSalt_t ps;
+    // ps.password = *(password);  <-- QUESTION??
+    // ps.salt = *(salt);
+
+    // hash pointer for the signature
+    hashdata_t* signature = malloc(sizeof(hashdata_t));
+    // hashing pass and salt
+    get_signature(password, salt, signature);
+    printf("The hash is: %x\n", signature);
+
+    //
 }
 
 /*
@@ -184,9 +205,9 @@ int main(int argc, char **argv)
         user_salt[i] = 'a' + (random() % 26);
     }
     user_salt[SALT_LEN] = '\0';
-    //strncpy(user_salt, 
-    //    "0123456789012345678901234567890123456789012345678901234567890123\0", 
-    //    SALT_LEN+1);
+    strncpy(user_salt, 
+       "0123456789012345678901234567890123456789012345678901234567890123\0", 
+       SALT_LEN+1);
 
     fprintf(stdout, "Using salt: %s\n", user_salt);
 
