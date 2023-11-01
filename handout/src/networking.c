@@ -81,7 +81,7 @@ void get_signature(char* password, char* salt, hashdata_t* hash)
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
     
-    // created salted password string
+    // create salted password string
     char salted[strlen(password) + strlen(salt)];
     strcpy(salted, strcat(password, salt));
     //printf("Salted: %s\n", salted);
@@ -98,7 +98,10 @@ void register_user(char* username, char* password, char* salt)
 {
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
-    
+
+
+    /* CREATE HASH SIGNATURE */
+
     // struct for pass and salt
     // PasswordAndSalt_t ps;
     // ps.password = *(password);  <-- QUESTION??
@@ -110,7 +113,41 @@ void register_user(char* username, char* password, char* salt)
     get_signature(password, salt, signature);
     printf("The hash is: %x\n", signature);
 
-    //
+ 
+    /* CREATE CONNECTION TO SERVER */
+    // Code reference: 'echoclient.c' solution to lecture exercises on 25-10-23
+    int clientfd;
+    struct sockaddr_in serv_addr;
+
+    // Create socket
+    if ((clientfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+      printf("Socket creation failed\n");
+      return;
+    }; 
+
+    // Setup the socket address and convert server IP address (IPv4 and IPv6)
+    // from text to binary form
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(atoi(server_port));
+    if (inet_pton(AF_INET, server_ip, &serv_addr.sin_addr) <= 0) {
+      printf("Invalid address\n");
+      return;
+    }
+
+    // Make connection to server
+    if ((connect(clientfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr))) < 0) {
+      printf("Connection failed\n");
+      return;
+    }
+
+    /* SEND USER REGISTRATION INFORMATION TO SERVER */
+    // Header information for messages from client to server:
+    // 16 bytes - Username, as UTF-8 encoded bytes
+    // 32 bytes - Signature, a hash of the salted user password, as UTF-8 encoded bytes
+    // 4 bytes - Length of request data, excluding this header, unsigned integer in network byte-order
+
+
+    free(signature);
 }
 
 /*
