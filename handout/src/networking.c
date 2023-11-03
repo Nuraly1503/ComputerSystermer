@@ -98,6 +98,8 @@ void register_user(char* username, char* password, char* salt)
 {
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
+    printf("my_port: %s\n", my_port);
+    printf("my_ip: %s\n", server_ip);
 
 
     /* CREATE HASH SIGNATURE */
@@ -113,32 +115,17 @@ void register_user(char* username, char* password, char* salt)
     get_signature(password, salt, signature);
     printf("The hash is: %x\n", signature);
 
- 
-    /* CREATE CONNECTION TO SERVER */
-    // Code reference: 'echoclient.c' solution to lecture exercises on 25-10-23
+    // Open clientfd connection
     int clientfd;
-    struct sockaddr_in serv_addr;
-
-    // Create socket
-    if ((clientfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-      printf("Socket creation failed\n");
+    char* host = &server_ip[0];
+    char* port = &server_port[0];
+    if ((clientfd = compsys_helper_open_clientfd(host, port)) < 0) {
+      printf("Socket connection failed");
       return;
-    }; 
+    };
+    //printf("clienfd: %i\n", clientfd);
 
-    // Setup the socket address and convert server IP address (IPv4 and IPv6)
-    // from text to binary form
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(atoi(server_port));
-    if (inet_pton(AF_INET, server_ip, &serv_addr.sin_addr) <= 0) {
-      printf("Invalid address\n");
-      return;
-    }
-
-    // Make connection to server
-    if ((connect(clientfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr))) < 0) {
-      printf("Connection failed\n");
-      return;
-    }
+    compsys_helper_writen(clientfd, "message\n", 9);
 
     /* SEND USER REGISTRATION INFORMATION TO SERVER */
     // Header information for messages from client to server:
