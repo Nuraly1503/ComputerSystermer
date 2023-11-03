@@ -140,27 +140,30 @@ void register_user(char* username, char* password, char* salt)
       return;
     };
 
-    // Write username, signature and payload length to buffer
-    strcpy(buf, rq.username);
-    //strcat(buf, (char*) rq.salted_and_hashed);
-    //buf[strlen(rq.username) + strlen(rq.salted_and_hashed)] = rq.length;
-    //printf("%s\n", buf);
+    // Write username, signature, and payload size (length) to buffer
+    // ASK IF THERE'S A BETTER WAY TO DO THIS!?
+    size_t index = 0;
+    for (int i = 0; i < USERNAME_LEN; i++) {
+      buf[index] = rq.username[i];
+      index++;
+    }
+    for (int i = 0; i < SHA256_HASH_SIZE; i++) {
+      buf[index] = rq.salted_and_hashed[i];
+      index++;
+    }
+    buf[index] = rq.length;
 
+    // buf[0] = rq.username[0];
+    // buf[USERNAME_LEN] = rq.salted_and_hashed[0];
+    // buf[USERNAME_LEN + SHA256_HASH_SIZE] = rq.length;
+   
     printf("write\n");
     compsys_helper_writen(clientfd, buf, MAXLINE);
-    sleep(1);
 
     printf("read\n");
-    assert(compsys_helper_readlineb(&state, buf, MAXLINE) >= 0);
-    printf("out: %s\n", buf);
-
-    // while (fgets(buf, MAXLINE, stdin) != NULL) {
-    //   compsys_helper_writen(clientfd, buf, strlen(buf));
-    //   //compsys_helper_readlineb(&state, buf, MAXLINE);
-    //   fputs(buf, stdout);
-    // }
-    // close(clientfd);
-    // exit(0);
+    //compsys_helper_readn(clientfd, buf, MAXLINE);
+    read(clientfd, state.compsys_helper_buf, MAXLINE);
+    fputs(state.compsys_helper_buf, stdout);
 }
 
 /*
