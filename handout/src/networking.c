@@ -84,7 +84,6 @@ void get_signature(char* password, char* salt, hashdata_t* hash)
     // create salted password string
     char salted[strlen(password) + strlen(salt)];
     strcpy(salted, strcat(password, salt));
-    //printf("Salted: %s\n", salted);
     
     // hash salted to make signature
     get_data_sha(salted, *(hash), sizeof(salted), SHA256_HASH_SIZE);
@@ -98,34 +97,50 @@ void register_user(char* username, char* password, char* salt)
 {
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
-    printf("my_port: %s\n", my_port);
-    printf("my_ip: %s\n", server_ip);
-
-
-    /* CREATE HASH SIGNATURE */
 
     // struct for pass and salt
-    // PasswordAndSalt_t ps;
-    // ps.password = *(password);  <-- QUESTION??
-    // ps.salt = *(salt);
+    PasswordAndSalt_t ps;
+    strcpy(ps.password, password);
+    //strcpy(ps.salt, salt);
 
-    // hash pointer for the signature
-    hashdata_t* signature = malloc(sizeof(hashdata_t));
-    // hashing pass and salt
-    get_signature(password, salt, signature);
-    printf("The hash is: %x\n", signature);
+    // Request Header struct
+    RequestHeader_t rq;
+    strcpy(rq.username, username);
+    rq.length = (uint32_t) strlen(username); // <-- WHAT IS THIS LENGTH FOR?!
 
-    // Open clientfd connection
+    // Hashing pass and salt
+    get_signature(password, salt, &rq.salted_and_hashed);
+
+    // Print debugging for structs
+    printf("Password: %s\n", ps.password);
+    printf("Salt: %s\n", ps.salt);
+    printf("Username: %s\n", rq.username);
+    printf("Salted and hashed: %x\n", rq.salted_and_hashed);
+    printf("Length: %u\n", rq.length);
+    
+
+    // connection variables
     int clientfd;
     char* host = &server_ip[0];
     char* port = &server_port[0];
+    char buf[MAXLINE];
+    compsys_helper_state_t state;
+    
+    // Open clientfd connection
     if ((clientfd = compsys_helper_open_clientfd(host, port)) < 0) {
       printf("Socket connection failed");
       return;
     };
     //printf("clienfd: %i\n", clientfd);
 
-    compsys_helper_writen(clientfd, "message\n", 9);
+    // Init read buffer
+    compsys_helper_readinitb(&state, clientfd);
+    if (state.compsys_helper_fd == 0) {
+      printf("Read-buffer is not initialized\n");
+      return;
+    };
+
+    compsys_helper_writen(clientfd, buf, strlen(buf));
 
     /* SEND USER REGISTRATION INFORMATION TO SERVER */
     // Header information for messages from client to server:
@@ -133,8 +148,6 @@ void register_user(char* username, char* password, char* salt)
     // 32 bytes - Signature, a hash of the salted user password, as UTF-8 encoded bytes
     // 4 bytes - Length of request data, excluding this header, unsigned integer in network byte-order
 
-
-    free(signature);
 }
 
 /*
