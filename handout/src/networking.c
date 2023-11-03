@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <assert.h>
 
 #ifdef __APPLE__
 #include "./endian.h"
@@ -101,12 +102,12 @@ void register_user(char* username, char* password, char* salt)
     // struct for pass and salt
     PasswordAndSalt_t ps;
     strcpy(ps.password, password);
-    //strcpy(ps.salt, salt);
+    //strcpy(ps.salt, salt); //<-- Trace stack fault. Why??
 
     // Request Header struct
     RequestHeader_t rq;
     strcpy(rq.username, username);
-    rq.length = (uint32_t) strlen(username); // <-- WHAT IS THIS LENGTH FOR?!
+    rq.length = 0; // length of requested data, the payload. Set to 0 when registrering user.
 
     // Hashing pass and salt
     get_signature(password, salt, &rq.salted_and_hashed);
@@ -115,7 +116,7 @@ void register_user(char* username, char* password, char* salt)
     printf("Password: %s\n", ps.password);
     printf("Salt: %s\n", ps.salt);
     printf("Username: %s\n", rq.username);
-    printf("Salted and hashed: %x\n", rq.salted_and_hashed);
+    printf("Salted and hashed: %u\n", rq.salted_and_hashed);
     printf("Length: %u\n", rq.length);
     
 
@@ -125,13 +126,12 @@ void register_user(char* username, char* password, char* salt)
     char* port = &server_port[0];
     char buf[MAXLINE];
     compsys_helper_state_t state;
-    
+     
     // Open clientfd connection
     if ((clientfd = compsys_helper_open_clientfd(host, port)) < 0) {
-      printf("Socket connection failed");
+      printf("Socket connection failed with error %i\n", clientfd);
       return;
     };
-    //printf("clienfd: %i\n", clientfd);
 
     // Init read buffer
     compsys_helper_readinitb(&state, clientfd);
@@ -140,14 +140,27 @@ void register_user(char* username, char* password, char* salt)
       return;
     };
 
-    compsys_helper_writen(clientfd, buf, strlen(buf));
+    // Write username, signature and payload length to buffer
+    strcpy(buf, rq.username);
+    //strcat(buf, (char*) rq.salted_and_hashed);
+    //buf[strlen(rq.username) + strlen(rq.salted_and_hashed)] = rq.length;
+    //printf("%s\n", buf);
 
-    /* SEND USER REGISTRATION INFORMATION TO SERVER */
-    // Header information for messages from client to server:
-    // 16 bytes - Username, as UTF-8 encoded bytes
-    // 32 bytes - Signature, a hash of the salted user password, as UTF-8 encoded bytes
-    // 4 bytes - Length of request data, excluding this header, unsigned integer in network byte-order
+    printf("write\n");
+    compsys_helper_writen(clientfd, buf, MAXLINE);
+    sleep(1);
 
+    printf("read\n");
+    assert(compsys_helper_readlineb(&state, buf, MAXLINE) >= 0);
+    printf("out: %s\n", buf);
+
+    // while (fgets(buf, MAXLINE, stdin) != NULL) {
+    //   compsys_helper_writen(clientfd, buf, strlen(buf));
+    //   //compsys_helper_readlineb(&state, buf, MAXLINE);
+    //   fputs(buf, stdout);
+    // }
+    // close(clientfd);
+    // exit(0);
 }
 
 /*
