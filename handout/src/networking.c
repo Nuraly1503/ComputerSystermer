@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <assert.h>
 
 #ifdef __APPLE__
 #include "./endian.h"
@@ -84,7 +85,6 @@ void get_signature(char* password, char* salt, hashdata_t* hash)
     // create salted password string
     char salted[strlen(password) + strlen(salt)];
     strcpy(salted, strcat(password, salt));
-    //printf("Salted: %s\n", salted);
     
     // hash salted to make signature
     get_data_sha(salted, *(hash), sizeof(salted), SHA256_HASH_SIZE);
@@ -99,55 +99,68 @@ void register_user(char* username, char* password, char* salt)
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
 
-
-    /* CREATE HASH SIGNATURE */
-
     // struct for pass and salt
-    // PasswordAndSalt_t ps;
-    // ps.password = *(password);  <-- QUESTION??
-    // ps.salt = *(salt);
+    PasswordAndSalt_t ps;
+    strcpy(ps.password, password);
+    //strcpy(ps.salt, salt); //<-- Trace stack fault. Why??
 
-    // hash pointer for the signature
-    hashdata_t* signature = malloc(sizeof(hashdata_t));
-    // hashing pass and salt
-    get_signature(password, salt, signature);
-    printf("The hash is: %x\n", signature);
+    // Request Header struct
+    RequestHeader_t rq;
+    strcpy(rq.username, username);
+    rq.length = 0; // length of requested data, the payload. Set to 0 when registrering user.
 
- 
-    /* CREATE CONNECTION TO SERVER */
-    // Code reference: 'echoclient.c' solution to lecture exercises on 25-10-23
+    // Hashing pass and salt
+    get_signature(password, salt, &rq.salted_and_hashed);
+
+    // Print debugging for structs
+    printf("Password: %s\n", ps.password);
+    printf("Salt: %s\n", ps.salt);
+    printf("Username: %s\n", rq.username);
+    printf("Salted and hashed: %u\n", rq.salted_and_hashed);
+    printf("Length: %u\n", rq.length);
+    
+
+    // connection variables
     int clientfd;
-    struct sockaddr_in serv_addr;
-
-    // Create socket
-    if ((clientfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-      printf("Socket creation failed\n");
+    char* host = &server_ip[0];
+    char* port = &server_port[0];
+    char buf[MAXLINE];
+    compsys_helper_state_t state;
+     
+    // Open clientfd connection
+    if ((clientfd = compsys_helper_open_clientfd(host, port)) < 0) {
+      printf("Socket connection failed with error %i\n", clientfd);
       return;
-    }; 
+    };
 
-    // Setup the socket address and convert server IP address (IPv4 and IPv6)
-    // from text to binary form
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(atoi(server_port));
-    if (inet_pton(AF_INET, server_ip, &serv_addr.sin_addr) <= 0) {
-      printf("Invalid address\n");
+    // Init read buffer
+    compsys_helper_readinitb(&state, clientfd);
+    if (state.compsys_helper_fd == 0) {
+      printf("Read-buffer is not initialized\n");
       return;
-    }
+    };
 
-    // Make connection to server
-    if ((connect(clientfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr))) < 0) {
-      printf("Connection failed\n");
-      return;
-    }
+    // Write username, signature and payload length to buffer
+    strcpy(buf, rq.username);
+    //strcat(buf, (char*) rq.salted_and_hashed);
+    //buf[strlen(rq.username) + strlen(rq.salted_and_hashed)] = rq.length;
+    //printf("%s\n", buf);
 
-    /* SEND USER REGISTRATION INFORMATION TO SERVER */
-    // Header information for messages from client to server:
-    // 16 bytes - Username, as UTF-8 encoded bytes
-    // 32 bytes - Signature, a hash of the salted user password, as UTF-8 encoded bytes
-    // 4 bytes - Length of request data, excluding this header, unsigned integer in network byte-order
+    printf("write\n");
+    compsys_helper_writen(clientfd, buf, MAXLINE);
+    sleep(1);
 
+    printf("read\n");
+    assert(compsys_helper_readlineb(&state, buf, MAXLINE) >= 0);
+    printf("out: %s\n", buf);
 
-    free(signature);
+    // while (fgets(buf, MAXLINE, stdin) != NULL) {
+    //   compsys_helper_writen(clientfd, buf, strlen(buf));
+    //   //compsys_helper_readlineb(&state, buf, MAXLINE);
+    //   fputs(buf, stdout);
+    // }
+    // close(clientfd);
+    // exit(0);
 }
 
 /*
