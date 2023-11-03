@@ -105,22 +105,22 @@ void register_user(char* username, char* password, char* salt)
     //strcpy(ps.salt, salt); //<-- Trace stack fault. Why??
 
     // Request Header struct
-    RequestHeader_t rq;
-    strcpy(rq.username, username);
-    rq.length = 0; // length of requested data, the payload. Set to 0 when registrering user.
+    RequestHeader_t request_header;
+    strcpy(request_header.username, username);
+    request_header.length = 0; // length of requested data, the payload. Set to 0 when registrering user.
 
     // Hashing pass and salt
-    get_signature(password, salt, &rq.salted_and_hashed);
+    get_signature(password, salt, &request_header.salted_and_hashed);
 
     // Print debugging for structs
-    printf("Password: %s\n", ps.password);
+    /* printf("Password: %s\n", ps.password);
     printf("Salt: %s\n", ps.salt);
-    printf("Username: %s\n", rq.username);
-    printf("Salted and hashed: %u\n", rq.salted_and_hashed);
-    printf("Length: %u\n", rq.length);
+    printf("Username: %s\n", request_header.username);
+    printf("Salted and hashed: %u\n", request_header.salted_and_hashed);
+    printf("Length: %u\n", request_header.length); */
     
 
-    // connection variables
+    // Connection variables
     int clientfd;
     char* host = &server_ip[0];
     char* port = &server_port[0];
@@ -130,39 +130,40 @@ void register_user(char* username, char* password, char* salt)
     // Open clientfd connection
     if ((clientfd = compsys_helper_open_clientfd(host, port)) < 0) {
       printf("Socket connection failed with error %i\n", clientfd);
-      return;
+      exit(EXIT_FAILURE);
     };
 
     // Init read buffer
     compsys_helper_readinitb(&state, clientfd);
     if (state.compsys_helper_fd == 0) {
       printf("Read-buffer is not initialized\n");
-      return;
+      exit(EXIT_FAILURE);
     };
 
     // Write username, signature, and payload size (length) to buffer
     // ASK IF THERE'S A BETTER WAY TO DO THIS!?
+
+    /* buf[0] = request_header.username[0];
+    buf[USERNAME_LEN] = request_header.salted_and_hashed[0];
+    buf[USERNAME_LEN + SHA256_HASH_SIZE] = request_header.length; */
+
     size_t index = 0;
     for (int i = 0; i < USERNAME_LEN; i++) {
-      buf[index] = rq.username[i];
+      buf[index] = request_header.username[i];
       index++;
     }
     for (int i = 0; i < SHA256_HASH_SIZE; i++) {
-      buf[index] = rq.salted_and_hashed[i];
+      buf[index] = request_header.salted_and_hashed[i];
       index++;
     }
-    buf[index] = rq.length;
+    buf[index] = request_header.length;
 
-    // buf[0] = rq.username[0];
-    // buf[USERNAME_LEN] = rq.salted_and_hashed[0];
-    // buf[USERNAME_LEN + SHA256_HASH_SIZE] = rq.length;
-   
-    printf("write\n");
+    // Write the buffer to the socket (send 'register user' protocol to server)
     compsys_helper_writen(clientfd, buf, MAXLINE);
 
-    printf("read\n");
-    //compsys_helper_readn(clientfd, buf, MAXLINE);
-    read(clientfd, state.compsys_helper_buf, MAXLINE);
+    // Read response from server and send to stdout
+    compsys_helper_readlineb(&state, state.compsys_helper_buf, MAXLINE); // <-- NOT WORKING !!!
+    printf("Got response: ");
     fputs(state.compsys_helper_buf, stdout);
 }
 
