@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <assert.h>
+#include <time.h>
 
 #ifdef __APPLE__
 #include "./endian.h"
@@ -156,15 +157,18 @@ void register_user(char* username, char* password, char* salt)
       buf[index] = request_header.salted_and_hashed[i];
       index++;
     }
-    buf[index] = request_header.length;
+    buf[index] = htonl(request_header.length); // to network byte order
 
     // Write the buffer to the socket (send 'register user' protocol to server)
     compsys_helper_writen(clientfd, buf, MAXLINE);
 
     // Read response from server and send to stdout
-    compsys_helper_readlineb(&state, state.compsys_helper_buf, MAXLINE); // <-- NOT WORKING !!!
-    printf("Got response: ");
-    fputs(state.compsys_helper_buf, stdout);
+    char readbuf[MAXBUF];
+    compsys_helper_readn(clientfd, readbuf, MAXLINE);
+    printf("Got response: %s\n", &readbuf[80]);
+
+    // --> TRY IMPLEMENTATION WITH COMPSYS_HELPER_STATE_T STRUCT!
+    //printf("Got response: %s\n", &state.compsys_helper_buf[80]);
 }
 
 /*
@@ -254,14 +258,16 @@ int main(int argc, char **argv)
     // Note that a random salt should be used, but you may find it easier to
     // repeatedly test the same user credentials by using the hard coded value
     // below instead, and commenting out this randomly generating section.
+    srand(time(NULL)); // <-- NOTE! Initialize random seed
     for (int i=0; i<SALT_LEN; i++)
     {
-        user_salt[i] = 'a' + (random() % 26);
+        // NOTE! Using rand() instead of random() to seed with srand()
+        user_salt[i] = 'a' + (rand() % 26); 
     }
     user_salt[SALT_LEN] = '\0';
-    strncpy(user_salt, 
-       "0123456789012345678901234567890123456789012345678901234567890123\0", 
-       SALT_LEN+1);
+    // strncpy(user_salt, 
+    //    "0123456789012345678901234567890123456789012345678901234567890123\0", 
+    //    SALT_LEN+1);
 
     fprintf(stdout, "Using salt: %s\n", user_salt);
 
