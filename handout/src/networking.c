@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <assert.h>
+#include <time.h>
 
 #ifdef __APPLE__
 #include "./endian.h"
@@ -105,22 +106,22 @@ void register_user(char* username, char* password, char* salt)
     //strcpy(ps.salt, salt); //<-- Trace stack fault. Why??
 
     // Request Header struct
-    RequestHeader_t rq;
-    strcpy(rq.username, username);
-    rq.length = 0; // length of requested data, the payload. Set to 0 when registrering user.
+    RequestHeader_t request_header;
+    strcpy(request_header.username, username);
+    request_header.length = 0; // length of requested data, the payload. Set to 0 when registrering user.
 
     // Hashing pass and salt
-    get_signature(password, salt, &rq.salted_and_hashed);
+    get_signature(password, salt, &request_header.salted_and_hashed);
 
     // Print debugging for structs
-    printf("Password: %s\n", ps.password);
+    /* printf("Password: %s\n", ps.password);
     printf("Salt: %s\n", ps.salt);
-    printf("Username: %s\n", rq.username);
-    printf("Salted and hashed: %u\n", rq.salted_and_hashed);
-    printf("Length: %u\n", rq.length);
+    printf("Username: %s\n", request_header.username);
+    printf("Salted and hashed: %u\n", request_header.salted_and_hashed);
+    printf("Length: %u\n", request_header.length); */
     
 
-    // connection variables
+    // Connection variables
     int clientfd;
     char* host = &server_ip[0];
     char* port = &server_port[0];
@@ -130,37 +131,44 @@ void register_user(char* username, char* password, char* salt)
     // Open clientfd connection
     if ((clientfd = compsys_helper_open_clientfd(host, port)) < 0) {
       printf("Socket connection failed with error %i\n", clientfd);
-      return;
+      exit(EXIT_FAILURE);
     };
 
     // Init read buffer
     compsys_helper_readinitb(&state, clientfd);
     if (state.compsys_helper_fd == 0) {
       printf("Read-buffer is not initialized\n");
-      return;
+      exit(EXIT_FAILURE);
     };
 
-    // Write username, signature and payload length to buffer
-    strcpy(buf, rq.username);
-    //strcat(buf, (char*) rq.salted_and_hashed);
-    //buf[strlen(rq.username) + strlen(rq.salted_and_hashed)] = rq.length;
-    //printf("%s\n", buf);
+    // Write username, signature, and payload size (length) to buffer
+    // ASK IF THERE'S A BETTER WAY TO DO THIS!?
 
-    printf("write\n");
+    /* buf[0] = request_header.username[0];
+    buf[USERNAME_LEN] = request_header.salted_and_hashed[0];
+    buf[USERNAME_LEN + SHA256_HASH_SIZE] = request_header.length; */
+
+    size_t index = 0;
+    for (int i = 0; i < USERNAME_LEN; i++) {
+      buf[index] = request_header.username[i];
+      index++;
+    }
+    for (int i = 0; i < SHA256_HASH_SIZE; i++) {
+      buf[index] = request_header.salted_and_hashed[i];
+      index++;
+    }
+    buf[index] = htonl(request_header.length); // to network byte order
+
+    // Write the buffer to the socket (send 'register user' protocol to server)
     compsys_helper_writen(clientfd, buf, MAXLINE);
-    sleep(1);
 
-    printf("read\n");
-    assert(compsys_helper_readlineb(&state, buf, MAXLINE) >= 0);
-    printf("out: %s\n", buf);
+    // Read response from server and send to stdout
+    char readbuf[MAXBUF];
+    compsys_helper_readn(clientfd, readbuf, MAXLINE);
+    printf("Got response: %s\n", &readbuf[80]);
 
-    // while (fgets(buf, MAXLINE, stdin) != NULL) {
-    //   compsys_helper_writen(clientfd, buf, strlen(buf));
-    //   //compsys_helper_readlineb(&state, buf, MAXLINE);
-    //   fputs(buf, stdout);
-    // }
-    // close(clientfd);
-    // exit(0);
+    // --> TRY IMPLEMENTATION WITH COMPSYS_HELPER_STATE_T STRUCT!
+    //printf("Got response: %s\n", &state.compsys_helper_buf[80]);
 }
 
 /*
@@ -250,14 +258,16 @@ int main(int argc, char **argv)
     // Note that a random salt should be used, but you may find it easier to
     // repeatedly test the same user credentials by using the hard coded value
     // below instead, and commenting out this randomly generating section.
+    srand(time(NULL)); // <-- NOTE! Initialize random seed
     for (int i=0; i<SALT_LEN; i++)
     {
-        user_salt[i] = 'a' + (random() % 26);
+        // NOTE! Using rand() instead of random() to seed with srand()
+        user_salt[i] = 'a' + (rand() % 26); 
     }
     user_salt[SALT_LEN] = '\0';
-    strncpy(user_salt, 
-       "0123456789012345678901234567890123456789012345678901234567890123\0", 
-       SALT_LEN+1);
+    // strncpy(user_salt, 
+    //    "0123456789012345678901234567890123456789012345678901234567890123\0", 
+    //    SALT_LEN+1);
 
     fprintf(stdout, "Using salt: %s\n", user_salt);
 
