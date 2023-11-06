@@ -165,6 +165,20 @@ void get_file(char* username, char* password, char* salt, char* to_get)
 {
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
+
+    printf("Type 'get' to retrieve small file, or 'quit' to quit:\n");
+
+    char buf[MAXLINE];
+
+    while(fgets(buf, MAXLINE, stdin) != NULL) {
+      if (strncmp(buf, "quit", strlen("quit")) == 0) {
+        exit(EXIT_SUCCESS);
+      }
+      if (strncmp(buf, "get", strlen("get")) == 0) {
+        // retrive small file
+        printf("Cannot retrive small file\n");
+      }
+    }
 }
 
 int main(int argc, char **argv)
