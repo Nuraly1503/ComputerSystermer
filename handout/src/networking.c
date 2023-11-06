@@ -103,13 +103,12 @@ void register_user(char* username, char* password, char* salt)
     // struct for pass and salt
     PasswordAndSalt_t ps;
     strncpy(ps.password, password, PASSWORD_LEN);
-    strncpy(ps.salt, salt, SALT_LEN); //<-- Trace stack fault. Why??
-    //ps.salt[SALT_LEN] = '\0';
+    strncpy(ps.salt, salt, SALT_LEN);
 
     // Request Header structxs
     RequestHeader_t request_header;
-    strcpy(request_header.username, username);
-    request_header.length = 0; // length of requested data, the payload. Set to 0 when registrering user.
+    strncpy(request_header.username, username, USERNAME_LEN);
+    request_header.length = htonl(0); // length of requested data, the payload. Set to 0 when registrering user.
 
     // Hashing pass and salt
     get_signature(password, salt, &request_header.salted_and_hashed);
@@ -143,26 +142,7 @@ void register_user(char* username, char* password, char* salt)
     };
 
     // Write username, signature, and payload size (length) to buffer
-    // ASK IF THERE'S A BETTER WAY TO DO THIS!?
-
-    /* buf[0] = request_header.username[0];
-    buf[USERNAME_LEN] = request_header.salted_and_hashed[0];
-    buf[USERNAME_LEN + SHA256_HASH_SIZE] = request_header.length; */
-
-    /* size_t index = 0;
-    for (int i = 0; i < USERNAME_LEN; i++) {
-      buf[index] = request_header.username[i];
-      index++;
-    }
-    for (int i = 0; i < SHA256_HASH_SIZE; i++) {
-      buf[index] = request_header.salted_and_hashed[i];
-      index++;
-    }
-    buf[index] = htonl(request_header.length); // to network byte order */
-
-    strncpy(&buf[0], request_header.username, USERNAME_LEN);
-    strncpy(&buf[USERNAME_LEN], (char*) &request_header.salted_and_hashed[0], SHA256_HASH_SIZE);
-    buf[USERNAME_LEN + SHA256_HASH_SIZE] = htonl(request_header.length);
+    memcpy(&buf, (void*) &request_header, 52);
 
     // Write the buffer to the socket (send 'register user' protocol to server)
     compsys_helper_writen(clientfd, buf, MAXLINE);
