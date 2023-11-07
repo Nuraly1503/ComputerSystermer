@@ -192,12 +192,12 @@ void get_file(char* username, char* password, char* salt, char* to_get)
     memcpy(&request.payload, to_get, PATH_LEN);
 
     // Print debugging for structs
-    printf("Password: %s\n", ps.password);
-    printf("Salt: %s\n", ps.salt);
-    printf("Username: %s\n", request.header.username);
-    printf("Salted and hashed: %u\n", request.header.salted_and_hashed);
-    printf("Length: %u\n", ntohl(request.header.length));
-    printf("Payload: %s\n", request.payload);
+    // printf("Password: %s\n", ps.password);
+    // printf("Salt: %s\n", ps.salt);
+    // printf("Username: %s\n", request.header.username);
+    // printf("Salted and hashed: %u\n", request.header.salted_and_hashed);
+    // printf("Length: %u\n", ntohl(request.header.length));
+    // printf("Payload: %s\n", request.payload);
 
     // Open clientfd connection
     int clientfd;
@@ -218,11 +218,32 @@ void get_file(char* username, char* password, char* salt, char* to_get)
     // Read response from server and send to stdout
     char readbuf[MAXBUF];
     compsys_helper_readn(clientfd, readbuf, MAXLINE);
-    uint32_t lrdata = (uint32_t) readbuf[0];
-    lrdata = ntohl(lrdata);
-    printf("Length of response data: %u\n", lrdata);
-    printf("Got response: %s\n", &readbuf[80]);
 
+    // Header response protocol
+    uint32_t len_rdata = ntohl(*(uint32_t*) &readbuf[0]);
+    uint32_t status_code = ntohl(*(uint32_t*) &readbuf[4]);
+    uint32_t block_number = ntohl(*(uint32_t*) &readbuf[8]);
+    uint32_t block_count = ntohl(*(uint32_t*) &readbuf[12]);
+    hashdata_t block_hash;
+    hashdata_t total_hash;
+    memcpy(&block_hash, &readbuf[16], SHA256_HASH_SIZE);
+    memcpy(&total_hash, &readbuf[48], SHA256_HASH_SIZE);
+
+    // DEBUGGING
+    printf("len_rdata: %u\n", len_rdata);
+    printf("status code: %u\n", status_code);
+    printf("block number: %u\n", block_number);
+    printf("block count: %u\n", block_count);
+    printf("Block hash: %s\n", block_hash);
+    printf("Total hash: %s\n", total_hash);
+    printf("Got response: %s\n", &readbuf[RESPONSE_HEADER_LEN]);
+
+    // Write to file
+    FILE* file = fopen(to_get, "w");
+    fwrite(&readbuf[RESPONSE_HEADER_LEN], sizeof(char), len_rdata, file);
+
+    // Close file and clientfd connection
+    fclose(file); 
     close(clientfd);
 }
 
