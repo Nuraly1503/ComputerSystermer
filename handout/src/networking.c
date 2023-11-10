@@ -90,19 +90,6 @@ void get_signature(char* password, char* salt, hashdata_t* hash)
     
     // hash salted to make signature
     get_data_sha(salted, *(hash), sizeof(salted), SHA256_HASH_SIZE);
-
-    // Debugging
-    // printf("Salted: ");
-    // for (int i = 0; i < PASSWORD_LEN + SALT_LEN; i++) {
-    //   printf("%c", salted[i]);
-    // }
-    // printf("\n");
-
-    // printf("Hash: ");
-    // for (int i = 0; i < PASSWORD_LEN + SALT_LEN; i++) {
-    //   printf("%x", hash[i]);
-    // }
-    // printf("\n");
 }
 
 /*
@@ -189,7 +176,7 @@ void get_file(char* username, char* password, char* salt, char* to_get)
     memcpy(&request.header.username, username, USERNAME_LEN);
     request.header.length = (uint32_t) htonl(strlen(to_get));
     get_signature(password, salt, &request.header.salted_and_hashed); // Hashing pass and salt
-    memcpy(&request.payload, to_get, PATH_LEN);
+    memcpy(&request.payload, to_get, strlen(to_get));
 
     // Print debugging for structs
     // printf("Password: %s\n", ps.password);
@@ -215,32 +202,62 @@ void get_file(char* username, char* password, char* salt, char* to_get)
     // Send request to server
     compsys_helper_writen(clientfd, buf, MAXLINE);
 
-    // Read response from server and send to stdout
-    char readbuf[MAXBUF];
-    compsys_helper_readn(clientfd, readbuf, MAXLINE);
+    // State struct
+    compsys_helper_state_t state;
+    compsys_helper_readinitb(&state, clientfd);
 
     // Header response protocol
-    uint32_t len_rdata = ntohl(*(uint32_t*) &readbuf[0]);
-    uint32_t status_code = ntohl(*(uint32_t*) &readbuf[4]);
-    uint32_t block_number = ntohl(*(uint32_t*) &readbuf[8]);
-    uint32_t block_count = ntohl(*(uint32_t*) &readbuf[12]);
+    uint32_t len_rdata;
+    uint32_t status_code;
+    uint32_t block_number;
+    uint32_t block_count;
     hashdata_t block_hash;
     hashdata_t total_hash;
-    memcpy(&block_hash, &readbuf[16], SHA256_HASH_SIZE);
-    memcpy(&total_hash, &readbuf[48], SHA256_HASH_SIZE);
 
-    // DEBUGGING
-    printf("len_rdata: %u\n", len_rdata);
-    printf("status code: %u\n", status_code);
-    printf("block number: %u\n", block_number);
-    printf("block count: %u\n", block_count);
-    printf("Block hash: %s\n", block_hash);
-    printf("Total hash: %s\n", total_hash);
-    printf("Got response: %s\n", &readbuf[RESPONSE_HEADER_LEN]);
+    // Read-buffer
+    char readbuf[MAXBUF];
+    uint32_t total_count = 1;
 
-    // Write to file
+    // File to write to
     FILE* file = fopen(to_get, "w");
-    fwrite(&readbuf[RESPONSE_HEADER_LEN], sizeof(char), len_rdata, file);
+
+    do {
+      // Read to buffer
+      compsys_helper_readn(clientfd, readbuf, MAXLINE);
+
+      // Protocol
+      len_rdata = ntohl( *((uint32_t*) &readbuf[0]) );
+      status_code = ntohl( *((uint32_t*) &readbuf[4]) );
+      block_number = ntohl( *((uint32_t*) &readbuf[8]) );
+      block_count = ntohl( *((uint32_t*) &readbuf[12]) );
+      memcpy(&block_hash, &readbuf[16], SHA256_HASH_SIZE);
+      memcpy(&total_hash, &readbuf[48], SHA256_HASH_SIZE);
+
+      // DEBUGGING
+      // printf("len_rdata: %u\n", len_rdata);
+      // printf("status code: %u\n", status_code);
+      // printf("block number: %u\n", block_number);
+      // printf("block count: %u\n", block_count);
+      // printf("Block hash: %s\n", block_hash);
+      // printf("Total hash: %s\n", total_hash);
+      // printf("Got response: %s\n", &readbuf[RESPONSE_HEADER_LEN]);
+
+      // Write to file end of file
+      long index = 944 * block_number;
+
+      if (fseek(file, index, SEEK_SET) != 0) {
+        printf("fseek error to reach end of file\n");
+        exit(EXIT_FAILURE);
+      }
+
+      fwrite(&readbuf[RESPONSE_HEADER_LEN], sizeof(char), len_rdata, file);
+      
+      // Print block couting
+      printf("block: %u (%u/%u)\n", block_number, total_count, block_count);
+      total_count++;
+      sleep(1);
+
+    } while(total_count < block_count);
 
     // Close file and clientfd connection
     fclose(file); 
@@ -323,16 +340,16 @@ int main(int argc, char **argv)
     // Note that a random salt should be used, but you may find it easier to
     // repeatedly test the same user credentials by using the hard coded value
     // below instead, and commenting out this randomly generating section.
-    srand(time(NULL)); // <-- NOTE! Initialize random seed
+    //srand(time(NULL)); // <-- NOTE! Initialize random seed
     for (int i=0; i<SALT_LEN; i++)
     {
         // NOTE! Using rand() instead of random() to seed with srand()
-        user_salt[i] = 'a' + (rand() % 26); 
+        user_salt[i] = 'a' + (random() % 26); 
     }
     user_salt[SALT_LEN] = '\0';
-    strncpy(user_salt, 
-       "0123456789012345678901234567890123456789012345678901234567890123\0", 
-       SALT_LEN+1);
+    // strncpy(user_salt, 
+    //    "0123456789012345678901234567890123456789012345678901234567890123\0", 
+    //    SALT_LEN+1);
 
     fprintf(stdout, "Using salt: %s\n", user_salt);
 
@@ -348,22 +365,24 @@ int main(int argc, char **argv)
     register_user(username, password, user_salt);
 
     // User interaction
-    printf("Type 'get' to retrieve small file, or 'quit' to quit:\n");
+    printf("Type filename to retrieve file, or 'quit' to quit:\n");
     char buf[MAXBUF];
     while(fgets(buf, MAXLINE, stdin) != NULL) {
       if (strncmp(buf, "quit", strlen("quit")) == 0) {
         exit(EXIT_SUCCESS);
       }
-      if (strncmp(buf, "get", strlen("get")) == 0) {
-        // retrive small file
-        //printf("Cannot retrive small file\n");
-
-        // Retrieve the smaller file, that doesn't not require support for blocks. 
-        // As handed out, this line will run every time this client starts, and so 
-        // should be removed if user interaction is added
+      if (strncmp(buf, "tiny.txt", strlen("tiny.txt")) == 0) {
         get_file(username, password, user_salt, "tiny.txt");
       }
+      if (strncmp(buf, "hamlet.txt", strlen("hamlet.txt")) == 0) {
+        get_file(username, password, user_salt, "hamlet.txt");
+      }
     }
+
+    // Retrieve the smaller file, that doesn't not require support for blocks. 
+    // As handed out, this line will run every time this client starts, and so 
+    // should be removed if user interaction is added
+    //get_file(username, password, user_salt, "tiny.txt");
 
     // Retrieve the larger file, that requires support for blocked messages. As
     // handed out, this line will run every time this client starts, and so 
