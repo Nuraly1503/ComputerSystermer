@@ -215,11 +215,11 @@ void get_file(char* username, char* password, char* salt, char* to_get)
     hashdata_t total_hash;
 
     // Read-buffer
-    char readbuf[MAXBUF];
+    char readbuf[RESPONSE_HEADER_LEN];
     uint32_t total_count = 1;
 
-    // Read to buffer
-    compsys_helper_readn(clientfd, readbuf, MAXLINE);
+    // Read header
+    compsys_helper_readn(clientfd, readbuf, RESPONSE_HEADER_LEN);
 
     // Protocol
     len_rdata = ntohl( *((uint32_t*) &readbuf[0]) );
@@ -231,18 +231,44 @@ void get_file(char* username, char* password, char* salt, char* to_get)
 
     // if status is not OK, then return with message
     if (status_code != 1) {
+      // Read payload
+      char payload_buf[len_rdata];
+      compsys_helper_readn(clientfd, payload_buf, len_rdata);
+
+      // message
       char msg[len_rdata];
-      strcpy(msg, &readbuf[RESPONSE_HEADER_LEN]);
+      strcpy(msg, payload_buf);
       printf("%s\n", msg);
       return;
-    }
+    } 
 
     // File to write to
     FILE* file = fopen(to_get, "w");
 
-    do {
-      // Read to buffer
-      compsys_helper_readn(clientfd, readbuf, MAXLINE);
+    // Read payload
+    char payload_buf[len_rdata];
+    compsys_helper_readn(clientfd, payload_buf, len_rdata);
+
+    // Write payload file
+    long index = 944 * block_number;
+
+    if (fseek(file, index, SEEK_SET) != 0) {
+      printf("fseek error to reach end of file\n");
+      exit(EXIT_FAILURE);
+    }
+
+    fwrite(payload_buf, sizeof(char), len_rdata, file);
+    
+    // Print block counting
+    printf("block: %u (%u/%u)\n", block_number, total_count, block_count);
+    total_count++;
+    //sleep(1);
+
+    // Loop for multi-packets
+    while(total_count <= block_count) {
+
+      // Read HEADER
+      compsys_helper_readn(clientfd, readbuf, RESPONSE_HEADER_LEN);
 
       // Protocol
       len_rdata = ntohl( *((uint32_t*) &readbuf[0]) );
@@ -252,6 +278,27 @@ void get_file(char* username, char* password, char* salt, char* to_get)
       memcpy(&block_hash, &readbuf[16], SHA256_HASH_SIZE);
       memcpy(&total_hash, &readbuf[48], SHA256_HASH_SIZE);
 
+      // Read payload
+      char payload_buf[len_rdata];
+      compsys_helper_readn(clientfd, payload_buf, len_rdata);
+
+      // Write payload file
+      long index = 944 * block_number;
+
+      if (fseek(file, index, SEEK_SET) != 0) {
+        printf("fseek error to reach end of file\n");
+        exit(EXIT_FAILURE);
+      }
+
+      fwrite(payload_buf, sizeof(char), len_rdata, file);
+      
+      // Print block counting
+      printf("block: %u (%u/%u)\n", block_number, total_count, block_count);
+      total_count++;
+      //sleep(1);
+
+      
+
       // DEBUGGING
       // printf("len_rdata: %u\n", len_rdata);
       // printf("status code: %u\n", status_code);
@@ -260,24 +307,23 @@ void get_file(char* username, char* password, char* salt, char* to_get)
       // printf("Block hash: %s\n", block_hash);
       // printf("Total hash: %s\n", total_hash);
       // printf("Got response: %s\n", &readbuf[RESPONSE_HEADER_LEN]);
-
-
-      // Write to file end of file
-      long index = 944 * block_number;
-
-      if (fseek(file, index, SEEK_SET) != 0) {
-        printf("fseek error to reach end of file\n");
-        exit(EXIT_FAILURE);
-      }
-
-      fwrite(&readbuf[RESPONSE_HEADER_LEN], sizeof(char), len_rdata, file);
       
-      // Print block couting
-      printf("block: %u (%u/%u)\n", block_number, total_count, block_count);
-      total_count++;
-      sleep(1);
+      // // Write to index offset in file
+      // long local_index = 944 * block_number;
 
-    } while(total_count < block_count);
+      // if (fseek(file, local_index, SEEK_SET) != 0) {
+      //   printf("fseek error to reach end of file\n");
+      //   exit(EXIT_FAILURE);
+      // }
+
+      // fwrite(&readbuf[RESPONSE_HEADER_LEN], sizeof(char), len_rdata, file);
+      
+      // // Print block counting
+      // printf("block: %u (%u/%u)\n", block_number, total_count, block_count);
+      // total_count++;
+      // sleep(1);
+
+    } ;
 
     // Close file and clientfd connection
     fclose(file); 
