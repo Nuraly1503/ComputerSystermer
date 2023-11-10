@@ -218,6 +218,25 @@ void get_file(char* username, char* password, char* salt, char* to_get)
     char readbuf[MAXBUF];
     uint32_t total_count = 1;
 
+    // Read to buffer
+    compsys_helper_readn(clientfd, readbuf, MAXLINE);
+
+    // Protocol
+    len_rdata = ntohl( *((uint32_t*) &readbuf[0]) );
+    status_code = ntohl( *((uint32_t*) &readbuf[4]) );
+    block_number = ntohl( *((uint32_t*) &readbuf[8]) );
+    block_count = ntohl( *((uint32_t*) &readbuf[12]) );
+    memcpy(&block_hash, &readbuf[16], SHA256_HASH_SIZE);
+    memcpy(&total_hash, &readbuf[48], SHA256_HASH_SIZE);
+
+    // if status is not OK, then return with message
+    if (status_code != 1) {
+      char msg[len_rdata];
+      strcpy(msg, &readbuf[RESPONSE_HEADER_LEN]);
+      printf("%s\n", msg);
+      return;
+    }
+
     // File to write to
     FILE* file = fopen(to_get, "w");
 
@@ -235,12 +254,13 @@ void get_file(char* username, char* password, char* salt, char* to_get)
 
       // DEBUGGING
       // printf("len_rdata: %u\n", len_rdata);
-      printf("status code: %u\n", status_code);
+      // printf("status code: %u\n", status_code);
       // printf("block number: %u\n", block_number);
       // printf("block count: %u\n", block_count);
       // printf("Block hash: %s\n", block_hash);
       // printf("Total hash: %s\n", total_hash);
       // printf("Got response: %s\n", &readbuf[RESPONSE_HEADER_LEN]);
+
 
       // Write to file end of file
       long index = 944 * block_number;
