@@ -235,7 +235,7 @@ void get_file(char* username, char* password, char* salt, char* to_get)
 
       // DEBUGGING
       // printf("len_rdata: %u\n", len_rdata);
-      // printf("status code: %u\n", status_code);
+      printf("status code: %u\n", status_code);
       // printf("block number: %u\n", block_number);
       // printf("block count: %u\n", block_count);
       // printf("Block hash: %s\n", block_hash);
@@ -366,17 +366,16 @@ int main(int argc, char **argv)
 
     // User interaction
     printf("Type filename to retrieve file, or 'quit' to quit:\n");
-    char buf[MAXBUF];
-    while(fgets(buf, MAXLINE, stdin) != NULL) {
-      if (strncmp(buf, "quit", strlen("quit")) == 0) {
+    char request[MAXLINE];
+    // char buf[MAXBUF];
+    while(scanf("%s", request)) {
+      if (strncmp(request, "quit", strlen("quit")) == 0) {
         exit(EXIT_SUCCESS);
       }
-      if (strncmp(buf, "tiny.txt", strlen("tiny.txt")) == 0) {
-        get_file(username, password, user_salt, "tiny.txt");
-      }
-      if (strncmp(buf, "hamlet.txt", strlen("hamlet.txt")) == 0) {
-        get_file(username, password, user_salt, "hamlet.txt");
-      }
+        get_file(username, password, user_salt, (request));
+    //   if (strncmp(buf, "hamlet.txt", strlen("hamlet.txt")) == 0) {
+    //     get_file(username, password, user_salt, "hamlet.txt");
+    //   }
     }
 
     // Retrieve the smaller file, that doesn't not require support for blocks. 
