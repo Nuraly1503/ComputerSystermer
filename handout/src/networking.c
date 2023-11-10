@@ -229,7 +229,7 @@ void get_file(char* username, char* password, char* salt, char* to_get)
     memcpy(&block_hash, &readbuf[16], SHA256_HASH_SIZE);
     memcpy(&total_hash, &readbuf[48], SHA256_HASH_SIZE);
 
-    // if status is not OK, then return with message
+    // if status is NOT ok, then return with message
     if (status_code != 1) {
       // Read payload
       char payload_buf[len_rdata];
@@ -249,7 +249,7 @@ void get_file(char* username, char* password, char* salt, char* to_get)
     char payload_buf[len_rdata];
     compsys_helper_readn(clientfd, payload_buf, len_rdata);
 
-    // Write payload file
+    // Write payload to filestream
     long index = 944 * block_number;
 
     if (fseek(file, index, SEEK_SET) != 0) {
@@ -262,7 +262,6 @@ void get_file(char* username, char* password, char* salt, char* to_get)
     // Print block counting
     printf("block: %u (%u/%u)\n", block_number, total_count, block_count);
     total_count++;
-    //sleep(1);
 
     // Loop for multi-packets
     while(total_count <= block_count) {
@@ -282,7 +281,7 @@ void get_file(char* username, char* password, char* salt, char* to_get)
       char payload_buf[len_rdata];
       compsys_helper_readn(clientfd, payload_buf, len_rdata);
 
-      // Write payload file
+      // Write payload to filestream
       long index = 944 * block_number;
 
       if (fseek(file, index, SEEK_SET) != 0) {
@@ -295,35 +294,7 @@ void get_file(char* username, char* password, char* salt, char* to_get)
       // Print block counting
       printf("block: %u (%u/%u)\n", block_number, total_count, block_count);
       total_count++;
-      //sleep(1);
-
-      
-
-      // DEBUGGING
-      // printf("len_rdata: %u\n", len_rdata);
-      // printf("status code: %u\n", status_code);
-      // printf("block number: %u\n", block_number);
-      // printf("block count: %u\n", block_count);
-      // printf("Block hash: %s\n", block_hash);
-      // printf("Total hash: %s\n", total_hash);
-      // printf("Got response: %s\n", &readbuf[RESPONSE_HEADER_LEN]);
-      
-      // // Write to index offset in file
-      // long local_index = 944 * block_number;
-
-      // if (fseek(file, local_index, SEEK_SET) != 0) {
-      //   printf("fseek error to reach end of file\n");
-      //   exit(EXIT_FAILURE);
-      // }
-
-      // fwrite(&readbuf[RESPONSE_HEADER_LEN], sizeof(char), len_rdata, file);
-      
-      // // Print block counting
-      // printf("block: %u (%u/%u)\n", block_number, total_count, block_count);
-      // total_count++;
-      // sleep(1);
-
-    } ;
+    };
 
     // Close file and clientfd connection
     fclose(file); 
@@ -406,16 +377,17 @@ int main(int argc, char **argv)
     // Note that a random salt should be used, but you may find it easier to
     // repeatedly test the same user credentials by using the hard coded value
     // below instead, and commenting out this randomly generating section.
-    //srand(time(NULL)); // <-- NOTE! Initialize random seed
+
+    srand(time(NULL)); // <-- NOTE! Initialize random seed
     for (int i=0; i<SALT_LEN; i++)
     {
         // NOTE! Using rand() instead of random() to seed with srand()
-        user_salt[i] = 'a' + (random() % 26); 
+        user_salt[i] = 'a' + (rand() % 26); 
     }
     user_salt[SALT_LEN] = '\0';
-    // strncpy(user_salt, 
-    //    "0123456789012345678901234567890123456789012345678901234567890123\0", 
-    //    SALT_LEN+1);
+    strncpy(user_salt, 
+       "0123456789012345678901234567890123456789012345678901234567890123\0", 
+       SALT_LEN+1);
 
     fprintf(stdout, "Using salt: %s\n", user_salt);
 
