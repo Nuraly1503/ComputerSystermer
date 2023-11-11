@@ -345,9 +345,9 @@ int main(int argc, char **argv)
         user_salt[i] = 'a' + (rand() % 26); 
     }
     user_salt[SALT_LEN] = '\0';
-    strncpy(user_salt, 
-       "0123456789012345678901234567890123456789012345678901234567890123\0", 
-       SALT_LEN+1);
+    // strncpy(user_salt, 
+    //    "0123456789012345678901234567890123456789012345678901234567890123\0", 
+    //    SALT_LEN+1);
 
     fprintf(stdout, "Using salt: %s\n", user_salt);
 
@@ -357,14 +357,53 @@ int main(int argc, char **argv)
     // for user-interaction the following lines will almost certainly need to 
     // be removed/altered.
 
-    // Register the given user. As handed out, this line will run every time 
-    // this client starts, and so should be removed if user interaction is 
-    // added
-    register_user(username, password, user_salt);
+    // Bool for checking if user exists in client database file
+    int user_found = 0; // 0 or 1
+
+    // Check if user is registered. If so, then use the salt from the database file.
+    // Searching username in database.txt by iterating though each line 
+    //printf("user_found: %i\n", user_found);
+    FILE* db_file = fopen("database.txt", "r");
+    char db_str[MAXLINE];
+    while(fgets(db_str, MAXLINE, db_file) != NULL) {
+      char* db_username = malloc(sizeof(USERNAME_LEN));
+      char db_user_salt[SALT_LEN];
+      sscanf(db_str, "%[^;];%s", db_username, db_user_salt);
+      
+      // Debug
+      //printf("db_username: %s\n", db_username);
+      //printf("db_salt: %s\n", db_user_salt);
+
+      if (strncmp(db_username, username, USERNAME_LEN) == 0) {
+        memcpy(&user_salt, &db_user_salt, SALT_LEN);
+        user_found = 1;
+        free(db_username);
+        break;
+      }
+      free(db_username);
+    }
+    fclose(db_file);
+
+    printf("user_found: %i\n", user_found);
+
+    // Register user with server and in database.txt if user is not found  
+    if (user_found == 0) {
+      // save user to db
+      FILE* db_file = fopen("database.txt", "a");
+      fwrite(username, sizeof(char), strlen(username), db_file);
+      fwrite(";", sizeof(char), 1, db_file);
+      fwrite(user_salt, sizeof(char), SALT_LEN, db_file);
+      fwrite("\n", sizeof(char), 1, db_file);
+      fclose(db_file);
+
+      // Register the given user. As handed out, this line will run every time 
+      // this client starts, and so should be removed if user interaction is 
+      // added
+      register_user(username, password, user_salt);
+    }
 
     // User interaction
-    printf("Type filename to retrieve file, or 'quit' to quit:\n");
-    
+    printf("Type filename to retrieve file, or 'quit' to quit:\n");  
     char request[MAXLINE];
     while(scanf("%s", request)) {
       
