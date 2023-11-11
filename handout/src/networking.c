@@ -101,12 +101,12 @@ void register_user(char* username, char* password, char* salt)
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
 
-    // struct for pass and salt
+    // Struct for pass and salt
     PasswordAndSalt_t ps;
     memcpy(&ps.password, password, PASSWORD_LEN);
     memcpy(&ps.salt, salt, SALT_LEN);
 
-    // Request Header structxs
+    // Request Header struct
     RequestHeader_t request_header;
     memcpy(&request_header.username, username, USERNAME_LEN);
     request_header.length = (uint32_t) htonl(0); // length of requested data, the payload. Set to 0 when registrering user.
@@ -114,20 +114,12 @@ void register_user(char* username, char* password, char* salt)
     // Hashing pass and salt
     get_signature(password, salt, &request_header.salted_and_hashed);
 
-    // Print debugging for structs
-    // printf("Password: %s\n", ps.password);
-    // printf("Salt: %s\n", ps.salt);
-    // printf("Username: %s\n", request_header.username);
-    // printf("Salted and hashed: %u\n", request_header.salted_and_hashed);
-    // printf("Length: %u\n", request_header.length);
-    
-
     // Connection variables
     int clientfd;
     char* host = &server_ip[0];
     char* port = &server_port[0];
-    char buf[MAXLINE];
-    compsys_helper_state_t state;
+    char request_buf[REQUEST_HEADER_LEN];
+    char response_header_buf[RESPONSE_HEADER_LEN];
      
     // Open clientfd connection
     if ((clientfd = compsys_helper_open_clientfd(host, port)) < 0) {
@@ -135,23 +127,25 @@ void register_user(char* username, char* password, char* salt)
       exit(EXIT_FAILURE);
     };
 
-    // Init read buffer
-    compsys_helper_readinitb(&state, clientfd);
-    if (state.compsys_helper_fd == 0) {
-      printf("Read-buffer is not initialized\n");
-      exit(EXIT_FAILURE);
-    };
-
     // Write username, signature, and payload size (length) to buffer
-    memcpy(&buf, (void*) &request_header, 52);
+    memcpy(&request_buf, (void*) &request_header, REQUEST_HEADER_LEN);
 
     // Write the buffer to the socket (send 'register user' protocol to server)
-    compsys_helper_writen(clientfd, buf, MAXLINE);
+    compsys_helper_writen(clientfd, request_buf, MAXLINE);
 
-    // Read response from server and send to stdout
-    char readbuf[MAXBUF];
-    compsys_helper_readn(clientfd, readbuf, MAXLINE);
-    printf("Got response: %s\n", &readbuf[80]);
+    // Read response header 
+    compsys_helper_readn(clientfd, response_header_buf, RESPONSE_HEADER_LEN);
+
+    // Response header protocol
+    uint32_t len_rdata = ntohl( *((uint32_t*) &response_header_buf[0]) );
+
+    // Read response payload
+    char payload_buf[len_rdata];
+    payload_buf[len_rdata] = '\0';
+    compsys_helper_readn(clientfd, payload_buf, len_rdata);
+    
+    // Response message to stdout
+    printf("Got response: %s\n", payload_buf);
 
     close(clientfd);
 }
