@@ -101,12 +101,12 @@ void register_user(char* username, char* password, char* salt)
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
 
-    // struct for pass and salt
+    // Struct for pass and salt
     PasswordAndSalt_t ps;
     memcpy(&ps.password, password, PASSWORD_LEN);
     memcpy(&ps.salt, salt, SALT_LEN);
 
-    // Request Header structxs
+    // Request Header struct
     RequestHeader_t request_header;
     memcpy(&request_header.username, username, USERNAME_LEN);
     request_header.length = (uint32_t) htonl(0); // length of requested data, the payload. Set to 0 when registrering user.
@@ -114,20 +114,12 @@ void register_user(char* username, char* password, char* salt)
     // Hashing pass and salt
     get_signature(password, salt, &request_header.salted_and_hashed);
 
-    // Print debugging for structs
-    // printf("Password: %s\n", ps.password);
-    // printf("Salt: %s\n", ps.salt);
-    // printf("Username: %s\n", request_header.username);
-    // printf("Salted and hashed: %u\n", request_header.salted_and_hashed);
-    // printf("Length: %u\n", request_header.length);
-    
-
     // Connection variables
     int clientfd;
     char* host = &server_ip[0];
     char* port = &server_port[0];
-    char buf[MAXLINE];
-    compsys_helper_state_t state;
+    char request_buf[REQUEST_HEADER_LEN];
+    char response_header_buf[RESPONSE_HEADER_LEN];
      
     // Open clientfd connection
     if ((clientfd = compsys_helper_open_clientfd(host, port)) < 0) {
@@ -135,23 +127,25 @@ void register_user(char* username, char* password, char* salt)
       exit(EXIT_FAILURE);
     };
 
-    // Init read buffer
-    compsys_helper_readinitb(&state, clientfd);
-    if (state.compsys_helper_fd == 0) {
-      printf("Read-buffer is not initialized\n");
-      exit(EXIT_FAILURE);
-    };
-
     // Write username, signature, and payload size (length) to buffer
-    memcpy(&buf, (void*) &request_header, 52);
+    memcpy(&request_buf, (void*) &request_header, REQUEST_HEADER_LEN);
 
     // Write the buffer to the socket (send 'register user' protocol to server)
-    compsys_helper_writen(clientfd, buf, MAXLINE);
+    compsys_helper_writen(clientfd, request_buf, MAXLINE);
 
-    // Read response from server and send to stdout
-    char readbuf[MAXBUF];
-    compsys_helper_readn(clientfd, readbuf, MAXLINE);
-    printf("Got response: %s\n", &readbuf[80]);
+    // Read response header 
+    compsys_helper_readn(clientfd, response_header_buf, RESPONSE_HEADER_LEN);
+
+    // Response header protocol
+    uint32_t len_rdata = ntohl( *((uint32_t*) &response_header_buf[0]) );
+
+    // Read response payload
+    char payload_buf[len_rdata];
+    payload_buf[len_rdata] = '\0';
+    compsys_helper_readn(clientfd, payload_buf, len_rdata);
+    
+    // Response message to stdout
+    printf("Got response: %s\n", payload_buf);
 
     close(clientfd);
 }
@@ -178,18 +172,11 @@ void get_file(char* username, char* password, char* salt, char* to_get)
     get_signature(password, salt, &request.header.salted_and_hashed); // Hashing pass and salt
     memcpy(&request.payload, to_get, strlen(to_get));
 
-    // Print debugging for structs
-    // printf("Password: %s\n", ps.password);
-    // printf("Salt: %s\n", ps.salt);
-    // printf("Username: %s\n", request.header.username);
-    // printf("Salted and hashed: %u\n", request.header.salted_and_hashed);
-    // printf("Length: %u\n", ntohl(request.header.length));
-    // printf("Payload: %s\n", request.payload);
-
-    // Open clientfd connection
+    // Clientfd connection
     int clientfd;
     char* host = &server_ip[0];
     char* port = &server_port[0];
+
     if ((clientfd = compsys_helper_open_clientfd(host, port)) < 0) {
       printf("Socket connection failed with error %i\n", clientfd);
       exit(EXIT_FAILURE);
@@ -202,10 +189,6 @@ void get_file(char* username, char* password, char* salt, char* to_get)
     // Send request to server
     compsys_helper_writen(clientfd, buf, MAXLINE);
 
-    // State struct
-    compsys_helper_state_t state;
-    compsys_helper_readinitb(&state, clientfd);
-
     // Header response protocol
     uint32_t len_rdata;
     uint32_t status_code;
@@ -214,59 +197,15 @@ void get_file(char* username, char* password, char* salt, char* to_get)
     hashdata_t block_hash;
     hashdata_t total_hash;
 
-    // Read-buffer
+    // Variables
     char readbuf[RESPONSE_HEADER_LEN];
     uint32_t total_count = 1;
+    size_t fs_open = 0;
+    FILE* file;
 
-    // Read header
-    compsys_helper_readn(clientfd, readbuf, RESPONSE_HEADER_LEN);
-
-    // Protocol
-    len_rdata = ntohl( *((uint32_t*) &readbuf[0]) );
-    status_code = ntohl( *((uint32_t*) &readbuf[4]) );
-    block_number = ntohl( *((uint32_t*) &readbuf[8]) );
-    block_count = ntohl( *((uint32_t*) &readbuf[12]) );
-    memcpy(&block_hash, &readbuf[16], SHA256_HASH_SIZE);
-    memcpy(&total_hash, &readbuf[48], SHA256_HASH_SIZE);
-
-    // if status is NOT ok, then return with message
-    if (status_code != 1) {
-      // Read payload
-      char payload_buf[len_rdata];
-      compsys_helper_readn(clientfd, payload_buf, len_rdata);
-
-      // message
-      char msg[len_rdata];
-      strcpy(msg, payload_buf);
-      printf("%s\n", msg);
-      return;
-    } 
-
-    // File to write to
-    FILE* file = fopen(to_get, "w");
-
-    // Read payload
-    char payload_buf[len_rdata];
-    compsys_helper_readn(clientfd, payload_buf, len_rdata);
-
-    // Write payload to filestream
-    long index = 944 * block_number;
-
-    if (fseek(file, index, SEEK_SET) != 0) {
-      printf("fseek error to reach end of file\n");
-      exit(EXIT_FAILURE);
-    }
-
-    fwrite(payload_buf, sizeof(char), len_rdata, file);
-    
-    // Print block counting
-    printf("block: %u (%u/%u)\n", block_number, total_count, block_count);
-    total_count++;
-
-    // Loop for multi-packets
-    while(total_count <= block_count) {
-
-      // Read HEADER
+    // Loop for reading packets
+    do {
+      // Read reponse header
       compsys_helper_readn(clientfd, readbuf, RESPONSE_HEADER_LEN);
 
       // Protocol
@@ -277,6 +216,25 @@ void get_file(char* username, char* password, char* salt, char* to_get)
       memcpy(&block_hash, &readbuf[16], SHA256_HASH_SIZE);
       memcpy(&total_hash, &readbuf[48], SHA256_HASH_SIZE);
 
+      // If status is NOT OK, then return with message
+      if (status_code != 1) {
+        // Read payload
+        char msg_buf[len_rdata];
+        msg_buf[len_rdata] = '\0';
+        compsys_helper_readn(clientfd, msg_buf, len_rdata);
+
+        // Message
+        printf("%s\n", msg_buf);
+        close(clientfd);
+        return;
+      }
+
+      // Open filestream
+      if (fs_open == 0) {
+        file = fopen(to_get, "w");
+        fs_open = 1;
+      }
+
       // Read payload
       char payload_buf[len_rdata];
       compsys_helper_readn(clientfd, payload_buf, len_rdata);
@@ -285,7 +243,7 @@ void get_file(char* username, char* password, char* salt, char* to_get)
       long index = 944 * block_number;
 
       if (fseek(file, index, SEEK_SET) != 0) {
-        printf("fseek error to reach end of file\n");
+        printf("fseek error\n");
         exit(EXIT_FAILURE);
       }
 
@@ -294,10 +252,12 @@ void get_file(char* username, char* password, char* salt, char* to_get)
       // Print block counting
       printf("block: %u (%u/%u)\n", block_number, total_count, block_count);
       total_count++;
-    };
+
+    } while(total_count <= block_count);
+
 
     // Close file and clientfd connection
-    fclose(file); 
+    if (fs_open) fclose(file); 
     close(clientfd);
 }
 
@@ -404,16 +364,15 @@ int main(int argc, char **argv)
 
     // User interaction
     printf("Type filename to retrieve file, or 'quit' to quit:\n");
+    
     char request[MAXLINE];
-    // char buf[MAXBUF];
     while(scanf("%s", request)) {
+      
       if (strncmp(request, "quit", strlen("quit")) == 0) {
         exit(EXIT_SUCCESS);
       }
-        get_file(username, password, user_salt, (request));
-    //   if (strncmp(buf, "hamlet.txt", strlen("hamlet.txt")) == 0) {
-    //     get_file(username, password, user_salt, "hamlet.txt");
-    //   }
+
+      get_file(username, password, user_salt, (request));
     }
 
     // Retrieve the smaller file, that doesn't not require support for blocks. 
