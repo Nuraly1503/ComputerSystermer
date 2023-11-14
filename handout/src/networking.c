@@ -80,9 +80,6 @@ void get_file_sha(const char* sourcefile, hashdata_t hash, int size)
  */
 void get_signature(char* password, char* salt, hashdata_t* hash)
 {
-    // Your code here. This function has been added as a guide, but feel free 
-    // to add more, or work in other parts of the code
-    
     // create salted password string
     char salted[PASSWORD_LEN + SALT_LEN];
     memcpy(&salted, password, PASSWORD_LEN);
@@ -98,9 +95,6 @@ void get_signature(char* password, char* salt, hashdata_t* hash)
  */
 void register_user(char* username, char* password, char* salt)
 {
-    // Your code here. This function has been added as a guide, but feel free 
-    // to add more, or work in other parts of the code
-
     // Struct for pass and salt
     PasswordAndSalt_t ps;
     memcpy(&ps.password, password, PASSWORD_LEN);
@@ -109,7 +103,8 @@ void register_user(char* username, char* password, char* salt)
     // Request Header struct
     RequestHeader_t request_header;
     memcpy(&request_header.username, username, USERNAME_LEN);
-    request_header.length = (uint32_t) htonl(0); // length of requested data, the payload. Set to 0 when registrering user.
+    // length of requested data, the payload. Set to 0 when registrering user.
+    request_header.length = (uint32_t) htonl(0); 
 
     // Hashing pass and salt
     get_signature(password, salt, &request_header.salted_and_hashed);
@@ -157,9 +152,6 @@ void register_user(char* username, char* password, char* salt)
  */
 void get_file(char* username, char* password, char* salt, char* to_get)
 {
-    // Your code here. This function has been added as a guide, but feel free 
-    // to add more, or work in other parts of the code
-
     // struct for pass and salt
     PasswordAndSalt_t ps;
     strncpy(ps.password, password, PASSWORD_LEN);
@@ -345,9 +337,6 @@ int main(int argc, char **argv)
         user_salt[i] = 'a' + (rand() % 26); 
     }
     user_salt[SALT_LEN] = '\0';
-    // strncpy(user_salt, 
-    //    "0123456789012345678901234567890123456789012345678901234567890123\0", 
-    //    SALT_LEN+1);
 
     fprintf(stdout, "Using salt: %s\n", user_salt);
 
@@ -362,17 +351,12 @@ int main(int argc, char **argv)
 
     // Check if user is registered. If so, then use the salt from the database file.
     // Searching username in database.txt by iterating though each line 
-    //printf("user_found: %i\n", user_found);
     FILE* db_file = fopen("database.txt", "r");
     char db_str[MAXLINE];
     while(fgets(db_str, MAXLINE, db_file) != NULL) {
       char* db_username = malloc(sizeof(USERNAME_LEN));
       char db_user_salt[SALT_LEN];
       sscanf(db_str, "%[^;];%s", db_username, db_user_salt);
-      
-      // Debug
-      //printf("db_username: %s\n", db_username);
-      //printf("db_salt: %s\n", db_user_salt);
 
       if (strncmp(db_username, username, USERNAME_LEN) == 0) {
         memcpy(&user_salt, &db_user_salt, SALT_LEN);
@@ -388,7 +372,7 @@ int main(int argc, char **argv)
 
     // Register user with server and in database.txt if user is not found  
     if (user_found == 0) {
-      // save user to db
+      // save user to database.txt
       FILE* db_file = fopen("database.txt", "a");
       fwrite(username, sizeof(char), strlen(username), db_file);
       fwrite(";", sizeof(char), 1, db_file);
@@ -397,8 +381,7 @@ int main(int argc, char **argv)
       fclose(db_file);
 
       // Register the given user. As handed out, this line will run every time 
-      // this client starts, and so should be removed if user interaction is 
-      // added
+      // this client starts, and so should be removed if user interaction is added
       register_user(username, password, user_salt);
     }
 
@@ -406,23 +389,11 @@ int main(int argc, char **argv)
     printf("Type filename to retrieve file, or 'quit' to quit:\n");  
     char request[MAXLINE];
     while(scanf("%s", request)) {
-      
       if (strncmp(request, "quit", strlen("quit")) == 0) {
         exit(EXIT_SUCCESS);
       }
 
       get_file(username, password, user_salt, (request));
     }
-
-    // Retrieve the smaller file, that doesn't not require support for blocks. 
-    // As handed out, this line will run every time this client starts, and so 
-    // should be removed if user interaction is added
-    //get_file(username, password, user_salt, "tiny.txt");
-
-    // Retrieve the larger file, that requires support for blocked messages. As
-    // handed out, this line will run every time this client starts, and so 
-    // should be removed if user interaction is added
-    //get_file(username, password, user_salt, "hamlet.txt");
-
     exit(EXIT_SUCCESS);
 }

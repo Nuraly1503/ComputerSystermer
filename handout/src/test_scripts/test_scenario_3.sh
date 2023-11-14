@@ -25,18 +25,6 @@ check_status() {
     fi
 }
 
-# Function to check exit status
-# check_prompt() {
-#     if [[ "$1" == *"$2"* ]]; then
-#         echo "Successfully received expected prompt: $2"
-#     else
-#         echo "Failed to receive expected prompt: $2"
-#         echo "Actual output: $1"
-#         exit 1
-#     fi
-# }
-
-
 # Use 'expect' to automate the interaction
 /usr/bin/expect <<EOF
 spawn $networking_cmd $config_path

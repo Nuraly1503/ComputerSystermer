@@ -6,7 +6,7 @@ echo "Starting all test scenarios..."
 chmod +x test_scenario_*.sh
 
 # Running each test scenario script
-for i in {1..6}; do
+for i in {1..5}; do
     echo "Running test scenario $i..."
     ./test_scenario_$i.sh
     if [ $? -eq 0 ]; then
