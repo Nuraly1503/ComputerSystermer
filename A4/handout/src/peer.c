@@ -335,6 +335,46 @@ void send_message(PeerAddress_t peer_address, int command, char* request_body)
         {
             // Your code here. This code has been added as a guide, but feel 
             // free to add more, or work in other parts of the code
+
+            // Lock network mutex for client thread
+            pthread_mutex_lock(&network_mutex);
+
+            // Update peer count
+            peer_count = reply_length / (16 + 4);
+
+            // Update network 
+            for (uint32_t i = 0; i < peer_count; i++) {
+
+              uint32_t ip_index = i * 20;
+              uint32_t port_index = ip_index + 16;
+              
+              // Convert port to host-byte-order (uint32_t)
+              uint32_t reply_port_h;
+              memcpy(&reply_port_h, &reply_body[port_index], 4);
+              reply_port_h = ntohl(reply_port_h);
+              //printf("Port: %i\n", reply_port_h);
+
+              // Struct for peer address
+              PeerAddress_t* peer = malloc(sizeof(PeerAddress_t));
+              memcpy(peer->ip, &reply_body[ip_index], 16);
+              sprintf(peer->port, "%u", reply_port_h); // <-- uint32_t (unsigned int) to string 
+
+              // DEBUG
+              // printf("Peer %i: %s:%s\n", (i+1), peer->ip, peer->port);
+              // for (int i = 0; i < PORT_LEN; i++) {
+              //   printf("%x ", peer->port[i]);
+              // }
+
+              // Add peer address to network
+              network[i] = peer;
+            }
+
+            // DEBUG
+            //printf("Second loop done\n");
+
+            // Unlock network mutex for client thread
+            pthread_mutex_unlock(&network_mutex);
+
         }
     } 
     else
@@ -365,12 +405,15 @@ void* client_thread(void* thread_args)
 
     // Update peer_address with random peer from network
     get_random_peer(peer_address);
+    sleep(5); // <-- SLEEP FOR DEBUG
 
     // Retrieve the smaller file, that doesn't not require support for blocks
     send_message(*peer_address, COMMAND_RETREIVE, "tiny.txt");
+    sleep(5); // <-- SLEEP FOR DEBUG
 
     // Update peer_address with random peer from network
     get_random_peer(peer_address);
+    sleep(5); // <-- SLEEP FOR DEBUG
 
     // Retrieve the larger file, that requires support for blocked messages
     send_message(*peer_address, COMMAND_RETREIVE, "hamlet.txt");
