@@ -429,6 +429,30 @@ void handle_register(int connfd, char* client_ip, int client_port_int)
 {
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
+
+    printf("Handle register\n");
+
+    // Lock network mutex
+    pthread_mutex_lock(&network_mutex);
+
+    // State
+    uint32_t body_length = (IP_LEN + 4) * peer_count;
+    uint32_t status;
+    uint32_t block_number;
+    uint32_t block_count;
+
+    // Make a response header and sent it to the client peer
+    struct ReplyHeader reply_header;
+    reply_header.length = htonl(body_length);
+    reply_header.status = htonl(status);
+    reply_header.this_block = htonl(block_number);
+    reply_header.block_count = htonl(block_count);
+    get_data_sha(network, reply_header.block_hash, sizeof(network), SHA256_HASH_SIZE); // << OBS!
+    get_data_sha(network, reply_header.total_hash, sizeof(network), SHA256_HASH_SIZE); // << OBS!
+
+
+    // Unlock network mutex
+    pthread_mutex_unlock(&network_mutex);
 }
 
 /*
@@ -469,6 +493,42 @@ void* server_thread()
 {
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
+
+    // Open listening port
+    int serverfd; 
+    if ((serverfd = compsys_helper_open_listenfd(my_address->port)) < 0) {
+      printf("Socket connection failed with error %i\n", serverfd);
+      exit(EXIT_FAILURE);
+    };
+
+    // Read request header
+    char request_header_buf[REQUEST_HEADER_LEN];
+    compsys_helper_readn(serverfd, &request_header_buf, REQUEST_HEADER_LEN);
+
+    struct RequestHeader request_header;
+    memcpy(&request_header.ip, &request_header_buf[0], IP_LEN);
+    request_header.port = ntohl(request_header_buf[IP_LEN]);
+    request_header.command = ntohl(request_header_buf[IP_LEN + 4]);
+    request_header.length = ntohl(request_header_buf[IP_LEN + 4 + 4]);
+
+    // Read body (payload)
+    char payload_buf[request_header.length];
+    compsys_helper_readn(serverfd, &payload_buf, request_header.length);
+
+    // Convert port to host-byte-order (uint32_t)
+    uint32_t reply_port_h;
+    memcpy(&reply_port_h, &payload_buf[IP_LEN], 4);
+    reply_port_h = ntohl(reply_port_h);
+
+    struct PeerAddress peer_address;
+    memcpy(&peer_address.ip, &payload_buf, IP_LEN);
+    sprintf(peer_address.port, "%u", reply_port_h);
+
+    // Handle register request
+    handle_register(serverfd, peer_address.ip, atoi(peer_address.port));
+
+    printf("server thread\n");
+    close(serverfd);
 }
 
 
