@@ -405,15 +405,15 @@ void* client_thread(void* thread_args)
 
     // Update peer_address with random peer from network
     get_random_peer(peer_address);
-    sleep(5); // <-- SLEEP FOR DEBUG
+    sleep(1); // <-- SLEEP FOR DEBUG
 
     // Retrieve the smaller file, that doesn't not require support for blocks
     send_message(*peer_address, COMMAND_RETREIVE, "tiny.txt");
-    sleep(5); // <-- SLEEP FOR DEBUG
+    sleep(1); // <-- SLEEP FOR DEBUG
 
     // Update peer_address with random peer from network
     get_random_peer(peer_address);
-    sleep(5); // <-- SLEEP FOR DEBUG
+    sleep(1); // <-- SLEEP FOR DEBUG
 
     // Retrieve the larger file, that requires support for blocked messages
     send_message(*peer_address, COMMAND_RETREIVE, "hamlet.txt");
@@ -518,11 +518,6 @@ void* handle_server_request(void* vargp)
     );
 
     // DEBUG
-    // printf("Got request: \n");
-    // printf("request IP: %s\n", request_header.ip);
-    // printf("request port: %u\n", request_header.port);
-    // printf("request command: %u\n", request_header.command);
-    // printf("request length: %u\n", request_header.length);
     //printf("peer address IP: %s\n", peer_address.ip);
     //printf("peer address Port: %s\n", peer_address.port);
 
@@ -533,9 +528,11 @@ void* handle_server_request(void* vargp)
         handle_register(connfd, peer_address.ip, atoi(peer_address.port));
         break;
       case COMMAND_RETREIVE:
+        printf("handle_retrieve command\n");
         // handle_retrieve()
         break;
       case COMMAND_INFORM:
+        printf("handle_inform command\n");
         // handle_inform();
         break;
       default:
