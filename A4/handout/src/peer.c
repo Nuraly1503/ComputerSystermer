@@ -404,19 +404,19 @@ void* client_thread(void* thread_args)
     send_message(*peer_address, COMMAND_REGISTER, "\0");
 
     // Update peer_address with random peer from network
-    get_random_peer(peer_address);
-    sleep(1); // <-- SLEEP FOR DEBUG
+    // get_random_peer(peer_address);
+    // sleep(1); // <-- SLEEP FOR DEBUG
 
     // Retrieve the smaller file, that doesn't not require support for blocks
-    send_message(*peer_address, COMMAND_RETREIVE, "tiny.txt");
-    sleep(1); // <-- SLEEP FOR DEBUG
+    // send_message(*peer_address, COMMAND_RETREIVE, "tiny.txt");
+    // sleep(1); // <-- SLEEP FOR DEBUG
 
     // Update peer_address with random peer from network
-    get_random_peer(peer_address);
-    sleep(1); // <-- SLEEP FOR DEBUG
+    // get_random_peer(peer_address);
+    // sleep(1); // <-- SLEEP FOR DEBUG
 
     // Retrieve the larger file, that requires support for blocked messages
-    send_message(*peer_address, COMMAND_RETREIVE, "hamlet.txt");
+    //send_message(*peer_address, COMMAND_RETREIVE, "hamlet.txt");
 
     return NULL;
 }
@@ -464,6 +464,33 @@ void handle_inform(char* request)
 {
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
+
+    // Error handling: 
+    // Can only recieve inform messages if on the network
+    // Check if the address the request is from is already on the network.
+    // If not, then don't handle the inform request
+
+    // Convert port to host-byte-order (uint32_t)
+    uint32_t port_hbol;
+    memcpy(&port_hbol, &request[IP_LEN], 4);
+    port_hbol = ntohl(port_hbol);
+
+    // Create new peer address struct
+    PeerAddress_t* new_peer = malloc(sizeof(PeerAddress_t));
+    memcpy(new_peer->ip, request, IP_LEN);
+    sprintf(new_peer->port, "%u", port_hbol);
+
+    // Update network list
+    pthread_mutex_lock(&network_mutex);
+
+    peer_count += 1;
+    network = (PeerAddress_t**) realloc(network, (sizeof(PeerAddress_t*)) * peer_count);
+    network[peer_count - 1] = new_peer;
+
+    pthread_mutex_unlock(&network_mutex);
+
+    // Interaction
+    printf("Informed of new peer: %s:%s\n", new_peer->ip, new_peer->port);
 }
 
 /*
@@ -498,9 +525,9 @@ void* handle_server_request(void* vargp)
     request_header.length = ntohl(request_header.length);
 
     // Read incoming body (payload) if the commands are 'retrieve' or 'inform'
-    char payload_buf[request_header.length];
+    char request_body[request_header.length];
     if (request_header.command != COMMAND_REGISTER) {
-      compsys_helper_readn(connfd, &payload_buf, request_header.length);
+      compsys_helper_readn(connfd, request_body, request_header.length);
     }
 
     // Write incoming peer IP and port to PeerAddress struct
@@ -510,7 +537,7 @@ void* handle_server_request(void* vargp)
 
     // Interaction
     fprintf(stdout, 
-      "Got request with IP: %s, Port: %u, Command: %u, Payload length: %u\n",
+      "Got request from %s:%u, with Command: %u, Payload length: %u\n",
       request_header.ip, 
       request_header.port, 
       request_header.command, 
@@ -520,26 +547,42 @@ void* handle_server_request(void* vargp)
     // DEBUG
     //printf("peer address IP: %s\n", peer_address.ip);
     //printf("peer address Port: %s\n", peer_address.port);
+    // Print network
+    // printf("Network before\n");
+    // printf("Peer count %u\n", peer_count);
+    // for (uint32_t i = 0; i < peer_count; i++) {
+    //   PeerAddress_t peer = *(network[i]);
+    //   printf("Peer %i: %s:%s\n", (i+1), peer.ip, peer.port);
+    // };
 
     // Handle request commands
     switch (request_header.command) {
       case COMMAND_REGISTER:
-        //printf("handle_register command\n");
+        printf("Got register message from %s:%u\n", request_header.ip, request_header.port);
         handle_register(connfd, peer_address.ip, atoi(peer_address.port));
         break;
       case COMMAND_RETREIVE:
-        printf("handle_retrieve command\n");
+        printf("Got retrieve message from %s:%u\n", request_header.ip, request_header.port);
         // handle_retrieve()
         break;
       case COMMAND_INFORM:
-        printf("handle_inform command\n");
-        // handle_inform();
+        printf("Got inform message from %s:%u\n", request_header.ip, request_header.port);
+        handle_inform(request_body);
         break;
       default:
         // ERROR handling
         printf("Unable to read incoming request command\n");
         break;
     }
+
+    // DEBUG
+    // Print network
+    printf("Updated network:\n");
+    printf("Peer count %u\n", peer_count);
+    for (uint32_t i = 0; i < peer_count; i++) {
+      PeerAddress_t peer = *(network[i]);
+      printf("Peer %i: %s:%s\n", (i+1), peer.ip, peer.port);
+    };
 
     // Close port connection and return
     close(connfd);
