@@ -405,15 +405,15 @@ void* client_thread(void* thread_args)
 
     // Update peer_address with random peer from network
     get_random_peer(peer_address);
-    sleep(5); // <-- SLEEP FOR DEBUG
+    sleep(1); // <-- SLEEP FOR DEBUG
 
     // Retrieve the smaller file, that doesn't not require support for blocks
     send_message(*peer_address, COMMAND_RETREIVE, "tiny.txt");
-    sleep(5); // <-- SLEEP FOR DEBUG
+    sleep(1); // <-- SLEEP FOR DEBUG
 
     // Update peer_address with random peer from network
     get_random_peer(peer_address);
-    sleep(5); // <-- SLEEP FOR DEBUG
+    sleep(1); // <-- SLEEP FOR DEBUG
 
     // Retrieve the larger file, that requires support for blocked messages
     send_message(*peer_address, COMMAND_RETREIVE, "hamlet.txt");
@@ -485,55 +485,54 @@ void* handle_server_request(void* vargp)
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
 
-    // DEBUG
-    printf("handle_server_request()\n");
-
     // Detach connfd connection as an independent thread
     int connfd = *((int*) vargp);
     pthread_detach(pthread_self());
     free(vargp);
 
-    // Read incoming request header
-    char request_header_buf[REQUEST_HEADER_LEN];
-    compsys_helper_readn(connfd, &request_header_buf, REQUEST_HEADER_LEN);
-    
+    // Read incoming request header    
     struct RequestHeader request_header;
-    memcpy(&request_header.ip, &request_header_buf[0], IP_LEN);
-    request_header.port = ntohl((uint32_t) request_header_buf[IP_LEN]);
-    request_header.command = ntohl(request_header_buf[IP_LEN + 4]);
-    request_header.length = ntohl(request_header_buf[IP_LEN + 4 + 4]);
+    compsys_helper_readn(connfd, &request_header, REQUEST_HEADER_LEN);
+    request_header.port = ntohl(request_header.port);
+    request_header.command = ntohl(request_header.command);
+    request_header.length = ntohl(request_header.length);
 
-    // Read incoming body (payload)
+    // Read incoming body (payload) if the commands are 'retrieve' or 'inform'
     char payload_buf[request_header.length];
-    compsys_helper_readn(connfd, &payload_buf, request_header.length);
-
-    // Convert port to host-byte-order (uint32_t)
-    // uint32_t reply_port_h;
-    // memcpy(&reply_port_h, &payload_buf[IP_LEN], 4);
-    // reply_port_h = ntohl(reply_port_h);
+    if (request_header.command != COMMAND_REGISTER) {
+      compsys_helper_readn(connfd, &payload_buf, request_header.length);
+    }
 
     // Write incoming peer IP and port to PeerAddress struct
     struct PeerAddress peer_address;
-    // memcpy(&peer_address.ip, &payload_buf, IP_LEN);
-    // sprintf(peer_address.port, "%u", reply_port_h);
+    memcpy(&peer_address.ip, request_header.ip, IP_LEN);
+    sprintf(peer_address.port, "%u", request_header.port);
+
+    // Interaction
+    fprintf(stdout, 
+      "Got request with IP: %s, Port: %u, Command: %u, Payload length: %u\n",
+      request_header.ip, 
+      request_header.port, 
+      request_header.command, 
+      request_header.length
+    );
 
     // DEBUG
-    printf("request IP: %s\n", request_header.ip);
-    printf("request port: %u\n", request_header.port);
-    printf("request command: %u\n", request_header.command);
-    printf("request length: %u\n", request_header.length);
-
+    //printf("peer address IP: %s\n", peer_address.ip);
+    //printf("peer address Port: %s\n", peer_address.port);
 
     // Handle request commands
     switch (request_header.command) {
       case COMMAND_REGISTER:
-        printf("handle_register command\n");
-        //handle_register(connfd, peer_address.ip, atoi(peer_address.port));
+        //printf("handle_register command\n");
+        handle_register(connfd, peer_address.ip, atoi(peer_address.port));
         break;
       case COMMAND_RETREIVE:
+        printf("handle_retrieve command\n");
         // handle_retrieve()
         break;
       case COMMAND_INFORM:
+        printf("handle_inform command\n");
         // handle_inform();
         break;
       default:
@@ -556,12 +555,11 @@ void* server_thread()
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
 
-    // DEBUG
-    printf("server_thread()\n");
-
     // Open concurrent listening port (as independent thread) and 
     // make it call handle_server_request. 
     // Infinite while-loop waits for incoming connections.
+    printf("Starting server at: %s:%s\n", my_address->ip, my_address->port);
+
     int listenfd;
     listenfd = compsys_helper_open_listenfd(my_address->port);
     
