@@ -678,6 +678,7 @@ void* server_thread()
     // Open concurrent listening port (as independent thread) 
     // and make it call handle_server_request. 
     // Infinite while-loop waits for incoming connections.
+    // Ref: Implementation taken from CompSys Lecture 30/10/2023, slide 15-16 
     printf("Starting server at: %s:%s\n", my_address->ip, my_address->port);
 
     int listenfd;
