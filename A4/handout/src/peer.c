@@ -494,14 +494,91 @@ void handle_inform(char* request)
     printf("Informed of new peer: %s:%s\n", new_peer->ip, new_peer->port);
 }
 
+
+
 /*
  * Handle 'retrieve' type messages as defined by the assignment text. This will
  * always generate a response
  */
-void handle_retreive(int connfd, char* request)
+void handle_retrieve(int connfd, char* request)
 {
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
+
+    char* bad_request;
+    char* filepath = request;
+    uint32_t length;
+    uint32_t status;
+    char payload[MAX_MSG_LEN - REPLY_HEADER_LEN];
+    char response_msg[MAX_MSG_LEN];
+
+    // Reply Header
+    struct ReplyHeader reply_header;
+
+    // Open file stream
+    FILE* file = fopen(filepath, "r");
+    if (file == NULL) {
+
+      // OBS! Error handling needs to be corrected. Code below seg. faulting!!
+    
+      // status = STATUS_BAD_REQUEST;
+      // sprintf(bad_request, "Requested content %s does not exist", filepath);
+      // strcpy(payload, bad_request);
+      // length = strlen(bad_request);
+      // printf("%s\n", bad_request);
+      // return; 
+
+      // Temp solution for now
+      printf("Bad request\n");
+      return;
+
+    } else {
+      printf("Sending requested data from %s\n", filepath);
+      status = STATUS_OK;
+    }
+
+    // Write file to payload
+    if (status == STATUS_OK) {
+      
+      // Get file size
+      fseek(file, 0, SEEK_END);
+      length = ftell(file); 
+      rewind(file);
+
+      // Write file to payload buffer and close filepointer
+      if (length <= (MAX_MSG_LEN - REPLY_HEADER_LEN)) {
+        fread(payload, sizeof(char), length, file);
+      }
+      fclose(file);
+    }
+
+    // Update Reply Header (cont.)
+    reply_header.length = length;
+    reply_header.status = status;
+    reply_header.block_count = 1;
+    reply_header.this_block = 0;
+    get_file_sha(filepath, reply_header.block_hash, SHA256_HASH_SIZE);
+    get_file_sha(filepath, reply_header.total_hash, SHA256_HASH_SIZE);
+
+    // DEBUG
+    //printf("payload size: %u\n", length);
+    //printf("payload: %s\n", payload);
+
+    // Interaction
+    printf("Sending reply %u/%u with payload length of %u\n", 
+      reply_header.this_block + 1, 
+      reply_header.block_count,
+      reply_header.length
+    );
+
+    // Compose response message
+    reply_to_net(&reply_header);
+    memcpy(&response_msg, &reply_header, REPLY_HEADER_LEN);
+    memcpy(&response_msg[REPLY_HEADER_LEN], &payload, length);
+
+    // Send response (in packets)
+    compsys_helper_writen(connfd, response_msg, MAX_MSG_LEN);
+
 }
 
 /*
@@ -564,7 +641,7 @@ void* handle_server_request(void* vargp)
         break;
       case COMMAND_RETREIVE:
         printf("Got retrieve message from %s:%u\n", request_header.ip, request_header.port);
-        // handle_retrieve()
+        handle_retrieve(connfd, request_body);
         break;
       case COMMAND_INFORM:
         printf("Got inform message from %s:%u\n", request_header.ip, request_header.port);
@@ -578,12 +655,12 @@ void* handle_server_request(void* vargp)
 
     // DEBUG
     // Print network
-    printf("Updated network:\n");
-    printf("Peer count %u\n", peer_count);
-    for (uint32_t i = 0; i < peer_count; i++) {
-      PeerAddress_t peer = *(network[i]);
-      printf("Peer %i: %s:%s\n", (i+1), peer.ip, peer.port);
-    };
+    // printf("Updated network:\n");
+    // printf("Peer count %u\n", peer_count);
+    // for (uint32_t i = 0; i < peer_count; i++) {
+    //   PeerAddress_t peer = *(network[i]);
+    //   printf("Peer %i: %s:%s\n", (i+1), peer.ip, peer.port);
+    // };
 
     // Close port connection and return
     close(connfd);
@@ -711,4 +788,23 @@ int main(int argc, char **argv)
     pthread_join(server_thread_id, NULL);
 
     exit(EXIT_SUCCESS);
+}
+
+
+
+
+// Helper function converting Reply Header to host byte order
+void reply_to_host(ReplyHeader_t* reply_header) {
+  reply_header->length = ntohl(reply_header->length);
+  reply_header->status = ntohl(reply_header->status);
+  reply_header->this_block = ntohl(reply_header->this_block);
+  reply_header->block_count = ntohl(reply_header->block_count);
+}
+
+// Helper function converting Reply Header to network byte order
+void reply_to_net(ReplyHeader_t* reply_header) {
+  reply_header->length = htonl(reply_header->length);
+  reply_header->status = htonl(reply_header->status);
+  reply_header->this_block = htonl(reply_header->this_block);
+  reply_header->block_count = htonl(reply_header->block_count);
 }

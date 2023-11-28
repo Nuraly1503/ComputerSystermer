@@ -40,3 +40,7 @@ typedef struct NetworkAddress {
     char ip[IP_LEN];
     uint32_t port;
 } NetworkAddress_t;
+
+// Helper functions to convert Reply Header between network and host byte order
+void reply_to_host(ReplyHeader_t* reply_header);
+void reply_to_net(ReplyHeader_t* reply_header);
