@@ -614,7 +614,9 @@ void* handle_server_request(void* vargp)
 
     // Read incoming request header    
     struct RequestHeader request_header;
-    compsys_helper_readn(connfd, &request_header, REQUEST_HEADER_LEN);
+    compsys_helper_state_t helper_state;
+    compsys_helper_readinitb(&helper_state, connfd);
+    compsys_helper_readnb(&helper_state, &request_header, REQUEST_HEADER_LEN);
     request_header.port = ntohl(request_header.port);
     request_header.command = ntohl(request_header.command);
     request_header.length = ntohl(request_header.length);
@@ -622,7 +624,7 @@ void* handle_server_request(void* vargp)
     // Read incoming body (payload) if the commands are 'retrieve' or 'inform'
     char request_body[request_header.length];
     if (request_header.command != COMMAND_REGISTER) {
-      compsys_helper_readn(connfd, request_body, request_header.length);
+      compsys_helper_readnb(&helper_state, &request_body, request_header.length);
     }
 
     // Write incoming peer IP and port to PeerAddress struct
@@ -639,29 +641,18 @@ void* handle_server_request(void* vargp)
       request_header.length
     );
 
-    // DEBUG
-    //printf("peer address IP: %s\n", peer_address.ip);
-    //printf("peer address Port: %s\n", peer_address.port);
-    // Print network
-    // printf("Network before\n");
-    // printf("Peer count %u\n", peer_count);
-    // for (uint32_t i = 0; i < peer_count; i++) {
-    //   PeerAddress_t peer = *(network[i]);
-    //   printf("Peer %i: %s:%s\n", (i+1), peer.ip, peer.port);
-    // };
-
     // Handle request commands
     switch (request_header.command) {
       case COMMAND_REGISTER:
-        printf("Got register message from %s:%u\n", request_header.ip, request_header.port);
+        // printf("Got register message from %s:%u\n", request_header.ip, request_header.port);
         handle_register(connfd, peer_address.ip, atoi(peer_address.port));
         break;
       case COMMAND_RETREIVE:
-        printf("Got retrieve message from %s:%u\n", request_header.ip, request_header.port);
+        // printf("Got retrieve message from %s:%u\n", request_header.ip, request_header.port);
         handle_retrieve(connfd, request_body);
         break;
       case COMMAND_INFORM:
-        printf("Got inform message from %s:%u\n", request_header.ip, request_header.port);
+        // printf("Got inform message from %s:%u\n", request_header.ip, request_header.port);
         handle_inform(request_body);
         break;
       default:
@@ -669,15 +660,6 @@ void* handle_server_request(void* vargp)
         printf("Unable to read incoming request command\n");
         break;
     }
-
-    // DEBUG
-    // Print network
-    // printf("Updated network:\n");
-    // printf("Peer count %u\n", peer_count);
-    // for (uint32_t i = 0; i < peer_count; i++) {
-    //   PeerAddress_t peer = *(network[i]);
-    //   printf("Peer %i: %s:%s\n", (i+1), peer.ip, peer.port);
-    // };
 
     // Close port connection and return
     close(connfd);
