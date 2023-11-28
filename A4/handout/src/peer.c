@@ -523,21 +523,18 @@ void handle_retrieve(int connfd, char* request)
     // Open file stream
     FILE* file = fopen(filepath, "r");
     if (file == NULL) {
+      // If file doesn't exist, respond with a Bad Request message
+      char bad_request[max_payload_len];
+      sprintf(bad_request, "Requested content %s does not exist", filepath);
+      printf("%s\n", bad_request);
 
-      // OBS! Error handling needs to be corrected. Code below seg. faulting!!
-    
-      // status = STATUS_BAD_REQUEST;
-      // sprintf(bad_request, "Requested content %s does not exist", filepath);
-      // strcpy(payload, bad_request);
-      // length = strlen(bad_request);
-      // printf("%s\n", bad_request);
-      // return; 
-
-      // Temp solution for now
-      printf("Bad request\n");
-      return;
+      // Write bad request message to payload
+      status = STATUS_BAD_REQUEST;
+      file_size = strlen(bad_request);
+      strncpy(payload, bad_request, file_size);
 
     } else {
+      // Retrieve file
       printf("Sending requested data from %s\n", filepath);
       status = STATUS_OK;
     }
@@ -555,14 +552,16 @@ void handle_retrieve(int connfd, char* request)
     // Loop until all blocks have been sent (in packets)
     for (uint32_t i = 0; i < total_block_count; i++) {
 
+      // Set payload length
+      if (i + 1 == total_block_count) {
+        length = file_size - ((total_block_count - 1) * max_payload_len);
+      } else {
+        length = max_payload_len;
+      }
+
       // Write file data to payload buffer
-      memset(payload, '\0', max_payload_len);
-      if (status == STATUS_OK) {  
-        if (i + 1 == total_block_count) {
-          length = file_size - ((total_block_count - 1) * max_payload_len);
-        } else {
-          length = max_payload_len;
-        }
+      if (status == STATUS_OK) {
+        memset(payload, '\0', max_payload_len);
         fread(payload, sizeof(char), length, file);
       }
 
@@ -572,8 +571,12 @@ void handle_retrieve(int connfd, char* request)
       reply_header.block_count = total_block_count;
       reply_header.this_block = i;
       get_data_sha(payload, reply_header.block_hash, length, SHA256_HASH_SIZE);
-      get_file_sha(filepath, reply_header.total_hash, SHA256_HASH_SIZE);
-
+      if (file == NULL) {
+        get_data_sha(payload, reply_header.total_hash, length, SHA256_HASH_SIZE);
+      } else {
+        get_file_sha(filepath, reply_header.total_hash, SHA256_HASH_SIZE);
+      }
+      
       // Interaction
       printf("Sending reply %u/%u with payload length of %u bytes\n", 
         reply_header.this_block + 1, 
