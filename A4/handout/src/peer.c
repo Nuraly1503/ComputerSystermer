@@ -338,9 +338,11 @@ void send_message(PeerAddress_t peer_address, int command, char* request_body)
 
             // Lock network mutex for client thread
             pthread_mutex_lock(&network_mutex);
+
+            uint32_t uint32_port_len = 4;
             
             // Update peer count
-            peer_count = reply_length / (IP_LEN + 4);
+            peer_count = reply_length / (IP_LEN + uint32_port_len);
 
             // Update network memory
             network = (PeerAddress_t**) realloc(network, sizeof(PeerAddress_t*) * peer_count);
@@ -348,17 +350,17 @@ void send_message(PeerAddress_t peer_address, int command, char* request_body)
             // Update network 
             for (uint32_t i = 0; i < peer_count; i++) {
 
-              uint32_t ip_index = i * 20;
-              uint32_t port_index = ip_index + 16;
+              uint32_t ip_index = i * (IP_LEN + uint32_port_len);
+              uint32_t port_index = ip_index + IP_LEN;
               
               // Convert port to host-byte-order (uint32_t)
               uint32_t reply_port_h;
-              memcpy(&reply_port_h, &reply_body[port_index], 4);
+              memcpy(&reply_port_h, &reply_body[port_index], uint32_port_len);
               reply_port_h = ntohl(reply_port_h);
 
               // Struct for peer address
               PeerAddress_t* peer = malloc(sizeof(PeerAddress_t));
-              memcpy(peer->ip, &reply_body[ip_index], 16);
+              memcpy(peer->ip, &reply_body[ip_index], IP_LEN);
               sprintf(peer->port, "%u", reply_port_h); // <-- uint32_t (unsigned int) to string 
 
               // Add peer address to network
