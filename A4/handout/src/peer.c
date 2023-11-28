@@ -505,11 +505,16 @@ void handle_retrieve(int connfd, char* request)
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
 
-    char* bad_request;
+    // Lock retrieving mutex
+    pthread_mutex_lock(&retrieving_mutex);
+
     char* filepath = request;
     uint32_t length;
     uint32_t status;
-    char payload[MAX_MSG_LEN - REPLY_HEADER_LEN];
+    uint32_t file_size;
+    uint32_t total_block_count;
+    uint32_t max_payload_len = MAX_MSG_LEN - REPLY_HEADER_LEN;
+    char payload[max_payload_len];
     char response_msg[MAX_MSG_LEN];
 
     // Reply Header
@@ -537,48 +542,57 @@ void handle_retrieve(int connfd, char* request)
       status = STATUS_OK;
     }
 
-    // Write file to payload
+    // Get file size
     if (status == STATUS_OK) {
-      
-      // Get file size
       fseek(file, 0, SEEK_END);
-      length = ftell(file); 
+      file_size = ftell(file); 
       rewind(file);
-
-      // Write file to payload buffer and close filepointer
-      if (length <= (MAX_MSG_LEN - REPLY_HEADER_LEN)) {
-        fread(payload, sizeof(char), length, file);
-      }
-      fclose(file);
     }
 
-    // Update Reply Header (cont.)
-    reply_header.length = length;
-    reply_header.status = status;
-    reply_header.block_count = 1;
-    reply_header.this_block = 0;
-    get_file_sha(filepath, reply_header.block_hash, SHA256_HASH_SIZE);
-    get_file_sha(filepath, reply_header.total_hash, SHA256_HASH_SIZE);
+    // Get total block count
+    total_block_count = (file_size / max_payload_len) + 1;
 
-    // DEBUG
-    //printf("payload size: %u\n", length);
-    //printf("payload: %s\n", payload);
+    // Loop until all blocks have been sent (in packets)
+    for (uint32_t i = 0; i < total_block_count; i++) {
 
-    // Interaction
-    printf("Sending reply %u/%u with payload length of %u\n", 
-      reply_header.this_block + 1, 
-      reply_header.block_count,
-      reply_header.length
-    );
+      // Write file data to payload buffer
+      memset(payload, '\0', max_payload_len);
+      if (status == STATUS_OK) {  
+        if (i + 1 == total_block_count) {
+          length = file_size - ((total_block_count - 1) * max_payload_len);
+        } else {
+          length = max_payload_len;
+        }
+        fread(payload, sizeof(char), length, file);
+      }
 
-    // Compose response message
-    reply_to_net(&reply_header);
-    memcpy(&response_msg, &reply_header, REPLY_HEADER_LEN);
-    memcpy(&response_msg[REPLY_HEADER_LEN], &payload, length);
+      // Update Reply Header
+      reply_header.length = length;
+      reply_header.status = status;
+      reply_header.block_count = total_block_count;
+      reply_header.this_block = i;
+      get_data_sha(payload, reply_header.block_hash, length, SHA256_HASH_SIZE);
+      get_file_sha(filepath, reply_header.total_hash, SHA256_HASH_SIZE);
 
-    // Send response (in packets)
-    compsys_helper_writen(connfd, response_msg, MAX_MSG_LEN);
+      // Interaction
+      printf("Sending reply %u/%u with payload length of %u bytes\n", 
+        reply_header.this_block + 1, 
+        reply_header.block_count,
+        reply_header.length
+      );
 
+      // Compose response message
+      reply_to_net(&reply_header);
+      memcpy(&response_msg, &reply_header, REPLY_HEADER_LEN);
+      memcpy(&response_msg[REPLY_HEADER_LEN], &payload, length);
+
+      // Send response packet
+      compsys_helper_writen(connfd, response_msg, MAX_MSG_LEN);
+    }
+    fclose(file);
+
+    // Unlock mutex
+    pthread_mutex_unlock(&retrieving_mutex);
 }
 
 /*
@@ -676,8 +690,8 @@ void* server_thread()
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
 
-    // Open concurrent listening port (as independent thread) and 
-    // make it call handle_server_request. 
+    // Open concurrent listening port (as independent thread) 
+    // and make it call handle_server_request. 
     // Infinite while-loop waits for incoming connections.
     printf("Starting server at: %s:%s\n", my_address->ip, my_address->port);
 
