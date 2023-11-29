@@ -338,9 +338,11 @@ void send_message(PeerAddress_t peer_address, int command, char* request_body)
 
             // Lock network mutex for client thread
             pthread_mutex_lock(&network_mutex);
+
+            uint32_t uint32_port_len = 4;
             
             // Update peer count
-            peer_count = reply_length / (IP_LEN + 4);
+            peer_count = reply_length / (IP_LEN + uint32_port_len);
 
             // Update network memory
             network = (PeerAddress_t**) realloc(network, sizeof(PeerAddress_t*) * peer_count);
@@ -348,17 +350,17 @@ void send_message(PeerAddress_t peer_address, int command, char* request_body)
             // Update network 
             for (uint32_t i = 0; i < peer_count; i++) {
 
-              uint32_t ip_index = i * 20;
-              uint32_t port_index = ip_index + 16;
+              uint32_t ip_index = i * (IP_LEN + uint32_port_len);
+              uint32_t port_index = ip_index + IP_LEN;
               
               // Convert port to host-byte-order (uint32_t)
               uint32_t reply_port_h;
-              memcpy(&reply_port_h, &reply_body[port_index], 4);
+              memcpy(&reply_port_h, &reply_body[port_index], uint32_port_len);
               reply_port_h = ntohl(reply_port_h);
 
               // Struct for peer address
               PeerAddress_t* peer = malloc(sizeof(PeerAddress_t));
-              memcpy(peer->ip, &reply_body[ip_index], 16);
+              memcpy(peer->ip, &reply_body[ip_index], IP_LEN);
               sprintf(peer->port, "%u", reply_port_h); // <-- uint32_t (unsigned int) to string 
 
               // Add peer address to network
@@ -494,14 +496,108 @@ void handle_inform(char* request)
     printf("Informed of new peer: %s:%s\n", new_peer->ip, new_peer->port);
 }
 
+
+
 /*
  * Handle 'retrieve' type messages as defined by the assignment text. This will
  * always generate a response
  */
-void handle_retreive(int connfd, char* request)
+void handle_retrieve(int connfd, char* request)
 {
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
+
+    // Lock retrieving mutex
+    pthread_mutex_lock(&retrieving_mutex);
+
+    char* filepath = request;
+    uint32_t length;
+    uint32_t status;
+    uint32_t file_size;
+    uint32_t total_block_count;
+    uint32_t max_payload_len = MAX_MSG_LEN - REPLY_HEADER_LEN;
+    char payload[max_payload_len];
+    char response_msg[MAX_MSG_LEN];
+
+    // Reply Header
+    struct ReplyHeader reply_header;
+
+    // Open file stream
+    FILE* file = fopen(filepath, "r");
+    if (file == NULL) {
+      // If file doesn't exist, respond with a Bad Request message
+      char bad_request[max_payload_len];
+      sprintf(bad_request, "Requested content %s does not exist", filepath);
+      printf("%s\n", bad_request);
+
+      // Write bad request message to payload
+      status = STATUS_BAD_REQUEST;
+      file_size = strlen(bad_request);
+      strncpy(payload, bad_request, file_size);
+
+    } else {
+      // Retrieve file
+      printf("Sending requested data from %s\n", filepath);
+      status = STATUS_OK;
+    }
+
+    // Get file size
+    if (status == STATUS_OK) {
+      fseek(file, 0, SEEK_END);
+      file_size = ftell(file); 
+      rewind(file);
+    }
+
+    // Get total block count
+    total_block_count = (file_size / max_payload_len) + 1;
+
+    // Loop until all blocks have been sent (in packets)
+    for (uint32_t i = 0; i < total_block_count; i++) {
+
+      // Set payload length
+      if (i + 1 == total_block_count) {
+        length = file_size - ((total_block_count - 1) * max_payload_len);
+      } else {
+        length = max_payload_len;
+      }
+
+      // Write file data to payload buffer
+      if (status == STATUS_OK) {
+        memset(payload, '\0', max_payload_len);
+        fread(payload, sizeof(char), length, file);
+      }
+
+      // Update Reply Header
+      reply_header.length = length;
+      reply_header.status = status;
+      reply_header.block_count = total_block_count;
+      reply_header.this_block = i;
+      get_data_sha(payload, reply_header.block_hash, length, SHA256_HASH_SIZE);
+      if (file == NULL) {
+        get_data_sha(payload, reply_header.total_hash, length, SHA256_HASH_SIZE);
+      } else {
+        get_file_sha(filepath, reply_header.total_hash, SHA256_HASH_SIZE);
+      }
+      
+      // Interaction
+      printf("Sending reply %u/%u with payload length of %u bytes\n", 
+        reply_header.this_block + 1, 
+        reply_header.block_count,
+        reply_header.length
+      );
+
+      // Compose response message
+      reply_to_net(&reply_header);
+      memcpy(&response_msg, &reply_header, REPLY_HEADER_LEN);
+      memcpy(&response_msg[REPLY_HEADER_LEN], &payload, length);
+
+      // Send response packet
+      compsys_helper_writen(connfd, response_msg, MAX_MSG_LEN);
+    }
+    fclose(file);
+
+    // Unlock mutex
+    pthread_mutex_unlock(&retrieving_mutex);
 }
 
 /*
@@ -520,7 +616,9 @@ void* handle_server_request(void* vargp)
 
     // Read incoming request header    
     struct RequestHeader request_header;
-    compsys_helper_readn(connfd, &request_header, REQUEST_HEADER_LEN);
+    compsys_helper_state_t helper_state;
+    compsys_helper_readinitb(&helper_state, connfd);
+    compsys_helper_readnb(&helper_state, &request_header, REQUEST_HEADER_LEN);
     request_header.port = ntohl(request_header.port);
     request_header.command = ntohl(request_header.command);
     request_header.length = ntohl(request_header.length);
@@ -528,7 +626,7 @@ void* handle_server_request(void* vargp)
     // Read incoming body (payload) if the commands are 'retrieve' or 'inform'
     char request_body[request_header.length];
     if (request_header.command != COMMAND_REGISTER) {
-      compsys_helper_readn(connfd, request_body, request_header.length);
+      compsys_helper_readnb(&helper_state, &request_body, request_header.length);
     }
 
     // Write incoming peer IP and port to PeerAddress struct
@@ -545,29 +643,18 @@ void* handle_server_request(void* vargp)
       request_header.length
     );
 
-    // DEBUG
-    //printf("peer address IP: %s\n", peer_address.ip);
-    //printf("peer address Port: %s\n", peer_address.port);
-    // Print network
-    // printf("Network before\n");
-    // printf("Peer count %u\n", peer_count);
-    // for (uint32_t i = 0; i < peer_count; i++) {
-    //   PeerAddress_t peer = *(network[i]);
-    //   printf("Peer %i: %s:%s\n", (i+1), peer.ip, peer.port);
-    // };
-
     // Handle request commands
     switch (request_header.command) {
       case COMMAND_REGISTER:
-        printf("Got register message from %s:%u\n", request_header.ip, request_header.port);
+        // printf("Got register message from %s:%u\n", request_header.ip, request_header.port);
         handle_register(connfd, peer_address.ip, atoi(peer_address.port));
         break;
       case COMMAND_RETREIVE:
-        printf("Got retrieve message from %s:%u\n", request_header.ip, request_header.port);
-        // handle_retrieve()
+        // printf("Got retrieve message from %s:%u\n", request_header.ip, request_header.port);
+        handle_retrieve(connfd, request_body);
         break;
       case COMMAND_INFORM:
-        printf("Got inform message from %s:%u\n", request_header.ip, request_header.port);
+        // printf("Got inform message from %s:%u\n", request_header.ip, request_header.port);
         handle_inform(request_body);
         break;
       default:
@@ -575,15 +662,6 @@ void* handle_server_request(void* vargp)
         printf("Unable to read incoming request command\n");
         break;
     }
-
-    // DEBUG
-    // Print network
-    printf("Updated network:\n");
-    printf("Peer count %u\n", peer_count);
-    for (uint32_t i = 0; i < peer_count; i++) {
-      PeerAddress_t peer = *(network[i]);
-      printf("Peer %i: %s:%s\n", (i+1), peer.ip, peer.port);
-    };
 
     // Close port connection and return
     close(connfd);
@@ -599,9 +677,10 @@ void* server_thread()
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
 
-    // Open concurrent listening port (as independent thread) and 
-    // make it call handle_server_request. 
+    // Open concurrent listening port (as independent thread) 
+    // and make it call handle_server_request. 
     // Infinite while-loop waits for incoming connections.
+    // Ref: Implementation taken from CompSys Lecture 30/10/2023, slide 15-16 
     printf("Starting server at: %s:%s\n", my_address->ip, my_address->port);
 
     int listenfd;
@@ -711,4 +790,23 @@ int main(int argc, char **argv)
     pthread_join(server_thread_id, NULL);
 
     exit(EXIT_SUCCESS);
+}
+
+
+
+
+// Helper function converting Reply Header to host byte order
+void reply_to_host(ReplyHeader_t* reply_header) {
+  reply_header->length = ntohl(reply_header->length);
+  reply_header->status = ntohl(reply_header->status);
+  reply_header->this_block = ntohl(reply_header->this_block);
+  reply_header->block_count = ntohl(reply_header->block_count);
+}
+
+// Helper function converting Reply Header to network byte order
+void reply_to_net(ReplyHeader_t* reply_header) {
+  reply_header->length = htonl(reply_header->length);
+  reply_header->status = htonl(reply_header->status);
+  reply_header->this_block = htonl(reply_header->this_block);
+  reply_header->block_count = htonl(reply_header->block_count);
 }
