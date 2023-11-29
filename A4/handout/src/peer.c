@@ -424,40 +424,100 @@ void* client_thread(void* thread_args)
     return NULL;
 }
 
+
 /*
- * Handle any 'register' type requests, as defined in the asignment text. This
- * should always generate a response.
+ * Handle any 'register' type requests, as defined in the assignment text.
+ * This should always generate a response.
  */
 void handle_register(int connfd, char* client_ip, int client_port_int)
 {
-    // Your code here. This function has been added as a guide, but feel free 
-    // to add more, or work in other parts of the code
-
-    // DEBUG
     printf("handle_register()\n");
 
-    // Lock network mutex
     pthread_mutex_lock(&network_mutex);
 
-    // State
-    uint32_t body_length = (IP_LEN + 4) * peer_count;
-    uint32_t status;
-    uint32_t block_number;
-    uint32_t block_count;
+    // Check if the client is already in the network
+    int is_in_network = 0; // Default to not in network
+    for (u_int32_t i = 0; i < peer_count; i++) {
+        int port_int = atoi(network[i]->port); // Convert port string to integer
+        if (strcmp(network[i]->ip, client_ip) == 0 && port_int == client_port_int) {
+            is_in_network = 1;
+            break;
+        }
+    }
 
-    // Make a response header and sent it to the client peer
+    // Status code
+    uint32_t status = is_in_network;
+
+    // If the client is not in the network, add it
+    if (status == 1) {
+        PeerAddress_t* new_peer = malloc(sizeof(PeerAddress_t));
+        if (new_peer == NULL) {
+            // Handle malloc failure
+            perror("Malloc failed");
+            pthread_mutex_unlock(&network_mutex);
+            return;
+        }
+        memcpy(new_peer->ip, client_ip, IP_LEN);
+        sprintf(new_peer->port, "%u", client_port_int);
+
+        PeerAddress_t** temp_network = realloc(network, sizeof(PeerAddress_t*) * (peer_count + 1));
+        if (temp_network == NULL) {
+            // Handle realloc failure
+            perror("Realloc failed");
+            free(new_peer);
+            pthread_mutex_unlock(&network_mutex);
+            return;
+        }
+        network = temp_network;
+        network[peer_count++] = new_peer;
+    }
+
+    // Create a response header
     struct ReplyHeader reply_header;
-    reply_header.length = htonl(body_length);
+    reply_header.length = htonl((IP_LEN + sizeof(uint32_t)) * (peer_count + 1));
     reply_header.status = htonl(status);
-    reply_header.this_block = htonl(block_number);
-    reply_header.block_count = htonl(block_count);
-    //get_data_sha(network, reply_header.block_hash, sizeof(network), SHA256_HASH_SIZE); // << OBS!
-    //get_data_sha(network, reply_header.total_hash, sizeof(network), SHA256_HASH_SIZE); // << OBS!
+    reply_header.this_block = htonl(0);  // No block transfer for registration
+    reply_header.block_count = htonl(0); // No block transfer for registration
+
+    // Send the response header to the client
+    if (compsys_helper_writen(connfd, &reply_header, sizeof(reply_header)) < 0) {
+        perror("Write failed");
+    }
+
+    // Send response body if the client was successfully registered
+    if (status == 1) {
+        char* responseBody = malloc(ntohl(reply_header.length));
+        if (responseBody == NULL) {
+            perror("Malloc failed for response body");
+            pthread_mutex_unlock(&network_mutex);
+            return;
+        }
+
+        char* buffer = responseBody;
+        for (u_int32_t i = 0; i < peer_count; i++) {
+            // Copy IP addresses
+            printf("Copying IP address: %s\n", network[i]->ip);
+            memcpy(buffer, network[i]->ip, IP_LEN);
+            buffer += IP_LEN;
+
+            // Copy ports
+            int port_int = atoi(network[i]->port);
+            uint32_t net_port = htonl(port_int);
+            memcpy(buffer, &net_port, PORT_LEN);
+            buffer += IP_LEN;
+        }
+
+        // Send the response body
+        compsys_helper_writen(connfd, responseBody, ntohl(reply_header.length));
 
 
-    // Unlock network mutex
+        // Avoid memory leaks
+        free(responseBody);
+    }
+
     pthread_mutex_unlock(&network_mutex);
 }
+
 
 /*
  * Handle 'inform' type message as defined by the assignment text. These will 
@@ -647,18 +707,22 @@ void* handle_server_request(void* vargp)
     switch (request_header.command) {
       case COMMAND_REGISTER:
         // printf("Got register message from %s:%u\n", request_header.ip, request_header.port);
+        printf("Register");
         handle_register(connfd, peer_address.ip, atoi(peer_address.port));
         break;
       case COMMAND_RETREIVE:
         // printf("Got retrieve message from %s:%u\n", request_header.ip, request_header.port);
+        printf("Retrieve");
         handle_retrieve(connfd, request_body);
         break;
       case COMMAND_INFORM:
         // printf("Got inform message from %s:%u\n", request_header.ip, request_header.port);
+        printf("Inform");
         handle_inform(request_body);
         break;
       default:
         // ERROR handling
+        printf("error");
         printf("Unable to read incoming request command\n");
         break;
     }
@@ -810,3 +874,4 @@ void reply_to_net(ReplyHeader_t* reply_header) {
   reply_header->this_block = htonl(reply_header->this_block);
   reply_header->block_count = htonl(reply_header->block_count);
 }
+
