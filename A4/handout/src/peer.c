@@ -709,7 +709,7 @@ void* server_thread()
     socklen_t clientlen;
     struct sockaddr clientaddr;
     while(1) {
-      clientlen = sizeof(struct sockaddr_storage);
+      clientlen = sizeof(struct sockaddr);
       connfdp = malloc(sizeof(int));
       *connfdp = accept(listenfd, &clientaddr, &clientlen);
       pthread_create(&tid, NULL, handle_server_request, connfdp);
