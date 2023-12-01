@@ -403,22 +403,22 @@ void* client_thread(void* thread_args)
 {
     struct PeerAddress *peer_address = thread_args;
 
-    // Register the given user
-    send_message(*peer_address, COMMAND_REGISTER, "\0");
+    // // Register the given user
+    // send_message(*peer_address, COMMAND_REGISTER, "\0");
 
-    // Update peer_address with random peer from network
+    // // Update peer_address with random peer from network
     // get_random_peer(peer_address);
-    // sleep(1); // <-- SLEEP FOR DEBUG
+    // // sleep(1); // <-- SLEEP FOR DEBUG
 
-    // Retrieve the smaller file, that doesn't not require support for blocks
+    // // Retrieve the smaller file, that doesn't not require support for blocks
     // send_message(*peer_address, COMMAND_RETREIVE, "tiny.txt");
-    // sleep(1); // <-- SLEEP FOR DEBUG
+    // // sleep(1); // <-- SLEEP FOR DEBUG
 
-    // Update peer_address with random peer from network
+    // // Update peer_address with random peer from network
     // get_random_peer(peer_address);
-    // sleep(1); // <-- SLEEP FOR DEBUG
+    // // sleep(1); // <-- SLEEP FOR DEBUG
 
-    // Retrieve the larger file, that requires support for blocked messages
+    // // Retrieve the larger file, that requires support for blocked messages
     // send_message(*peer_address, COMMAND_RETREIVE, "hamlet.txt");
 
     return NULL;
@@ -431,22 +431,21 @@ void* client_thread(void* thread_args)
  */
 void handle_register(int connfd, char* client_ip, int client_port_int)
 {
-    printf("handle_register()\n");
 
     pthread_mutex_lock(&network_mutex);
 
     // Check if the client is already in the network
-    int is_in_network = 0; // Default to not in network
+    int is_in_network = 1;
     for (u_int32_t i = 0; i < peer_count; i++) {
-        int port_int = atoi(network[i]->port); // Convert port string to integer
+        int port_int = atoi(network[i]->port);
         if (strcmp(network[i]->ip, client_ip) == 0 && port_int == client_port_int) {
-            is_in_network = 1;
+            is_in_network = 2;
             break;
         }
     }
-
     // Status code
     uint32_t status = is_in_network;
+    printf("Connfd = %d\n", connfd);
 
     // If the client is not in the network, add it
     if (status == 1) {
@@ -468,53 +467,15 @@ void handle_register(int connfd, char* client_ip, int client_port_int)
             pthread_mutex_unlock(&network_mutex);
             return;
         }
+
         network = temp_network;
         network[peer_count++] = new_peer;
+
+        send_message(*new_peer, COMMAND_REGISTER, "\0");
+
+        // Listen for new connections
+        compsys_helper_open_listenfd(my_address->port);
     }
-
-    // Create a response header
-    struct ReplyHeader reply_header;
-    reply_header.length = htonl((IP_LEN + sizeof(uint32_t)) * (peer_count + 1));
-    reply_header.status = htonl(status);
-    reply_header.this_block = htonl(0);  // No block transfer for registration
-    reply_header.block_count = htonl(0); // No block transfer for registration
-
-    // Send the response header to the client
-    if (compsys_helper_writen(connfd, &reply_header, sizeof(reply_header)) < 0) {
-        perror("Write failed");
-    }
-
-    // Send response body if the client was successfully registered
-    if (status == 1) {
-        char* responseBody = malloc(ntohl(reply_header.length));
-        if (responseBody == NULL) {
-            perror("Malloc failed for response body");
-            pthread_mutex_unlock(&network_mutex);
-            return;
-        }
-
-        char* buffer = responseBody;
-        for (u_int32_t i = 0; i < peer_count; i++) {
-            // Copy IP addresses
-            printf("Copying IP address: %s\n", network[i]->ip);
-            memcpy(buffer, network[i]->ip, IP_LEN);
-            buffer += IP_LEN;
-
-            // Copy ports
-            int port_int = atoi(network[i]->port);
-            uint32_t net_port = htonl(port_int);
-            memcpy(buffer, &net_port, PORT_LEN);
-            buffer += IP_LEN;
-        }
-
-        // Send the response body
-        compsys_helper_writen(connfd, responseBody, ntohl(reply_header.length));
-
-
-        // Avoid memory leaks
-        free(responseBody);
-    }
-
     pthread_mutex_unlock(&network_mutex);
 }
 
@@ -554,6 +515,7 @@ void handle_inform(char* request)
 
     // Interaction
     printf("Informed of new peer: %s:%s\n", new_peer->ip, new_peer->port);
+
 }
 
 
@@ -668,7 +630,7 @@ void* handle_server_request(void* vargp)
 {
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
-
+    printf("handle_server_request()\n");
     // Detach connfd connection as an independent thread
     int connfd = *((int*) vargp);
     pthread_detach(pthread_self());
@@ -755,8 +717,8 @@ void* server_thread()
     socklen_t clientlen;
     struct sockaddr clientaddr;
     while(1) {
-      clientlen = sizeof(struct sockaddr_storage);
-      connfdp = malloc(sizeof(int));
+      clientlen = sizeof(struct sockaddr);
+      connfdp = malloc(sizeof(connfdp));
       *connfdp = accept(listenfd, &clientaddr, &clientlen);
       pthread_create(&tid, NULL, handle_server_request, connfdp);
     };
