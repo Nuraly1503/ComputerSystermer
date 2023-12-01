@@ -406,6 +406,24 @@ void* client_thread(void* thread_args)
     // Register the given user
     send_message(*peer_address, COMMAND_REGISTER, "\0");
 
+    // User interaction
+    printf("Type filename to retrieve file, or 'quit' to quit:\n");  
+    char request[MAXLINE];
+    while(scanf("%s", request)) {
+      if (strncmp(request, "quit", strlen("quit")) == 0) {
+        printf("Shutting down client thread.\n");
+        break;
+      }
+
+      // Update peer_address with random peer from network
+      get_random_peer(peer_address);
+
+      // Retrieve the larger file, that requires support for blocked messages
+      send_message(*peer_address, COMMAND_RETREIVE, request);
+
+      printf("Type filename to retrieve file, or 'quit' to quit:\n"); 
+    }
+
     // Update peer_address with random peer from network
     // get_random_peer(peer_address);
     // sleep(1); // <-- SLEEP FOR DEBUG
@@ -691,7 +709,7 @@ void* server_thread()
     socklen_t clientlen;
     struct sockaddr clientaddr;
     while(1) {
-      clientlen = sizeof(struct sockaddr_storage);
+      clientlen = sizeof(struct sockaddr);
       connfdp = malloc(sizeof(int));
       *connfdp = accept(listenfd, &clientaddr, &clientlen);
       pthread_create(&tid, NULL, handle_server_request, connfdp);
