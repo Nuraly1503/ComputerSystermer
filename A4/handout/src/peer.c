@@ -300,6 +300,9 @@ void send_message(PeerAddress_t peer_address, int command, char* request_body)
             fputs(payload, fp);
             fclose(fp);
         }
+
+        // NOTE! Sleep statment for testing
+        sleep(1);
     }
 
     // Confirm that our file is indeed correct
@@ -457,22 +460,79 @@ void handle_register(int connfd, char* client_ip, int client_port_int)
     // Lock network mutex
     pthread_mutex_lock(&network_mutex);
 
+    // Create new peer address struct
+    PeerAddress_t* new_peer = malloc(sizeof(PeerAddress_t));
+    memcpy(new_peer->ip, client_ip, IP_LEN);
+    sprintf(new_peer->port, "%i", client_port_int);
+
+    // Send inform messages to peers on the network
+    for (uint32_t i = 0; i < peer_count; i++) {
+
+      PeerAddress_t peer = *network[i];
+
+      if (!string_equal(my_address->port, peer.port)) {
+        printf("send inform\n");
+        // Request body
+        uint32_t client_port_int_hbol = htonl(client_port_int);
+        char request_body[IP_LEN + 4];
+        memcpy(&request_body, client_ip, IP_LEN);
+        memcpy(&request_body[IP_LEN], &client_port_int_hbol, 4);
+
+        // send inform message
+        send_message(peer, COMMAND_INFORM, request_body);
+      }
+    }
+
+    // Update network
+    peer_count += 1;
+    network = (PeerAddress_t**) realloc(network, (sizeof(PeerAddress_t*)) * peer_count);
+    network[peer_count - 1] = new_peer;
+
     // State
     uint32_t body_length = (IP_LEN + 4) * peer_count;
-    uint32_t status;
-    uint32_t block_number;
-    uint32_t block_count;
+
+    // Write network to payload
+    char payload[MAX_MSG_LEN - REPLY_HEADER_LEN];
+    for (uint32_t i = 0; i < peer_count; i++) {
+      uint32_t ip_index = i * (IP_LEN + 4);
+      uint32_t port_index = ip_index + IP_LEN;
+      uint32_t port_hnol = htonl((uint32_t) atoi(network[i]->port));
+      memcpy(&payload[ip_index], network[i]->ip, IP_LEN);
+      memcpy(&payload[port_index], &port_hnol, 4);
+    }
+
+    // DEBUG
+    for (int i = 0; i < 100; i++) {
+      printf("%c", payload[i]);
+    }
+    printf("\n");
+    
 
     // Make a response header and sent it to the client peer
     struct ReplyHeader reply_header;
-    reply_header.length = htonl(body_length);
-    reply_header.status = htonl(status);
-    reply_header.this_block = htonl(block_number);
-    reply_header.block_count = htonl(block_count);
-    //get_data_sha(network, reply_header.block_hash, sizeof(network), SHA256_HASH_SIZE); // << OBS!
-    //get_data_sha(network, reply_header.total_hash, sizeof(network), SHA256_HASH_SIZE); // << OBS!
+    reply_header.length = body_length;
+    reply_header.status = STATUS_OK;
+    reply_header.block_count = 1;
+    reply_header.this_block = 0;
+    get_data_sha(payload, reply_header.block_hash, sizeof(char), SHA256_HASH_SIZE); // << OBS!
+    get_data_sha(payload, reply_header.total_hash, sizeof(char), SHA256_HASH_SIZE); // << OBS!
 
+    // Compose response message
+    char response_msg[MAX_MSG_LEN];
+    reply_to_net(&reply_header);
+    memcpy(&response_msg, &reply_header, REPLY_HEADER_LEN);
+    memcpy(&response_msg[REPLY_HEADER_LEN], &payload, body_length);
 
+    // Send response packet
+    compsys_helper_writen(connfd, response_msg, MAX_MSG_LEN);
+
+    //DEBUG
+    for (uint32_t i = 0; i < peer_count; i++) {
+      printf("%s:%s", network[i]->ip, network[i]->port);
+      if (i != peer_count - 1) printf(", ");
+    };
+    printf("\n");
+    
     // Unlock network mutex
     pthread_mutex_unlock(&network_mutex);
 }
@@ -611,6 +671,9 @@ void handle_retrieve(int connfd, char* request)
 
       // Send response packet
       compsys_helper_writen(connfd, response_msg, MAX_MSG_LEN);
+
+      // Sleep statement for testing
+      sleep(1);
     }
     fclose(file);
 
