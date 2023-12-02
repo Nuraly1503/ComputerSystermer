@@ -472,11 +472,20 @@ void handle_register(int connfd, char* client_ip, int client_port_int)
 
       if (!string_equal(my_address->port, peer.port)) {
         printf("send inform\n");
+
         // Request body
-        uint32_t client_port_int_hbol = htonl(client_port_int);
+        uint32_t client_port_int_nbol = htonl(client_port_int);
         char request_body[IP_LEN + 4];
-        memcpy(&request_body, client_ip, IP_LEN);
-        memcpy(&request_body[IP_LEN], &client_port_int_hbol, 4);
+        strcpy(request_body, client_ip);
+        memcpy(&request_body[IP_LEN], &client_port_int_nbol, 4);
+        request_body[20] = '\0';
+
+        // DEBUG
+        for (int i = 0; i < 100; i++) {
+          printf("%c", request_body[i]);
+        }
+        printf("\n");
+        printf("send\n");
 
         // send inform message
         send_message(peer, COMMAND_INFORM, request_body);
@@ -501,21 +510,14 @@ void handle_register(int connfd, char* client_ip, int client_port_int)
       memcpy(&payload[port_index], &port_hnol, 4);
     }
 
-    // DEBUG
-    for (int i = 0; i < 100; i++) {
-      printf("%c", payload[i]);
-    }
-    printf("\n");
-    
-
     // Make a response header and sent it to the client peer
     struct ReplyHeader reply_header;
     reply_header.length = body_length;
     reply_header.status = STATUS_OK;
     reply_header.block_count = 1;
     reply_header.this_block = 0;
-    get_data_sha(payload, reply_header.block_hash, sizeof(char), SHA256_HASH_SIZE); // << OBS!
-    get_data_sha(payload, reply_header.total_hash, sizeof(char), SHA256_HASH_SIZE); // << OBS!
+    get_data_sha(payload, reply_header.block_hash, body_length, SHA256_HASH_SIZE); 
+    get_data_sha(payload, reply_header.total_hash, body_length, SHA256_HASH_SIZE); 
 
     // Compose response message
     char response_msg[MAX_MSG_LEN];
