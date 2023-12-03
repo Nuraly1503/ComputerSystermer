@@ -2,12 +2,12 @@ my_ip: 127.0.0.1
 my_port: 34567
 
 # first_peer (python)
-# peer_ip: 127.0.0.1
-# peer_port: 12345
+peer_ip: 127.0.0.1
+peer_port: 12345
 
 # connect to src/peer
-peer_ip: 127.0.0.1
-peer_port: 23456
+# peer_ip: 127.0.0.1
+# peer_port: 23456
 
 # These options can be used to connect to the remote server
 #peer_ip: 130.225.104.138
