@@ -336,12 +336,12 @@ void send_message(PeerAddress_t peer_address, int command, char* request_body)
     {
         if (command == COMMAND_REGISTER)
         {
-            // Your code here. This code has been added as a guide, but feel 
-            // free to add more, or work in other parts of the code
+            
 
             // Lock network mutex for client thread
             pthread_mutex_lock(&network_mutex);
 
+            // State
             uint32_t uint32_port_len = 4;
             
             // Update peer count
@@ -368,6 +368,7 @@ void send_message(PeerAddress_t peer_address, int command, char* request_body)
 
               // Add peer address to network
               network[i] = peer;
+
             }
 
             //Interaction
@@ -451,8 +452,6 @@ void* client_thread(void* thread_args)
  */
 void handle_register(int connfd, char* client_ip, int client_port_int)
 {
-    // Your code here. This function has been added as a guide, but feel free 
-    // to add more, or work in other parts of the code
 
     // DEBUG
     printf("handle_register()\n");
@@ -475,27 +474,20 @@ void handle_register(int connfd, char* client_ip, int client_port_int)
 
         // Request body
         uint32_t client_port_int_nbol = htonl(client_port_int);
-        char request_body[IP_LEN + 4];
+        char request_body[IP_LEN + PORT_LEN + 1];
         strcpy(request_body, client_ip);
         memcpy(&request_body[IP_LEN], &client_port_int_nbol, 4);
         request_body[20] = '\0';
 
-        // DEBUG
-        for (int i = 0; i < 100; i++) {
-          printf("%c", request_body[i]);
-        }
-        printf("\n");
-        printf("send\n");
-
         // send inform message
-        send_message(peer, COMMAND_INFORM, request_body);
+        send_message(peer, COMMAND_REGISTER, request_body);
       }
     }
 
     // Update network
+    network = (PeerAddress_t**) realloc(network, (sizeof(PeerAddress_t*) * (peer_count + 1)));
+    network[peer_count] = new_peer;
     peer_count += 1;
-    network = (PeerAddress_t**) realloc(network, (sizeof(PeerAddress_t*)) * peer_count);
-    network[peer_count - 1] = new_peer;
 
     // State
     uint32_t body_length = (IP_LEN + 4) * peer_count;
@@ -537,6 +529,8 @@ void handle_register(int connfd, char* client_ip, int client_port_int)
     
     // Unlock network mutex
     pthread_mutex_unlock(&network_mutex);
+
+
 }
 
 /*
@@ -566,9 +560,10 @@ void handle_inform(char* request)
     // Update network list
     pthread_mutex_lock(&network_mutex);
 
-    peer_count += 1;
+
     network = (PeerAddress_t**) realloc(network, (sizeof(PeerAddress_t*)) * peer_count);
     network[peer_count - 1] = new_peer;
+    peer_count += 1;
 
     pthread_mutex_unlock(&network_mutex);
 
@@ -893,3 +888,4 @@ void reply_to_net(ReplyHeader_t* reply_header) {
   reply_header->this_block = htonl(reply_header->this_block);
   reply_header->block_count = htonl(reply_header->block_count);
 }
+
