@@ -300,9 +300,6 @@ void send_message(PeerAddress_t peer_address, int command, char* request_body)
             fputs(payload, fp);
             fclose(fp);
         }
-
-        // NOTE! Sleep statment for testing
-        sleep(1);
     }
 
     // Confirm that our file is indeed correct
@@ -405,9 +402,10 @@ void send_message(PeerAddress_t peer_address, int command, char* request_body)
  */ 
 void* client_thread(void* thread_args)
 {
+    // printf("%s \n", thread_args);
     struct PeerAddress *peer_address = thread_args;
 
-    // Register the given user
+    // Register the given user MUST BE COMMENTED OUT WHEN USING THIS A FIRST PEER
     send_message(*peer_address, COMMAND_REGISTER, "\0");
 
     // User interaction
@@ -427,22 +425,6 @@ void* client_thread(void* thread_args)
 
       printf("Type filename to retrieve file, or 'quit' to quit:\n"); 
     }
-
-    // Update peer_address with random peer from network
-    // get_random_peer(peer_address);
-    // sleep(1); // <-- SLEEP FOR DEBUG
-
-    // Retrieve the smaller file, that doesn't not require support for blocks
-    // send_message(*peer_address, COMMAND_RETREIVE, "tiny.txt");
-    // sleep(1); // <-- SLEEP FOR DEBUG
-
-    // Update peer_address with random peer from network
-    // get_random_peer(peer_address);
-    // sleep(1); // <-- SLEEP FOR DEBUG
-
-    // Retrieve the larger file, that requires support for blocked messages
-    // send_message(*peer_address, COMMAND_RETREIVE, "hamlet.txt");
-
     return NULL;
 }
 
@@ -452,10 +434,6 @@ void* client_thread(void* thread_args)
  */
 void handle_register(int connfd, char* client_ip, int client_port_int)
 {
-
-    // DEBUG
-    printf("handle_register()\n");
-
     // Lock network mutex
     pthread_mutex_lock(&network_mutex);
 
@@ -529,8 +507,6 @@ void handle_register(int connfd, char* client_ip, int client_port_int)
     
     // Unlock network mutex
     pthread_mutex_unlock(&network_mutex);
-
-
 }
 
 /*
@@ -539,14 +515,6 @@ void handle_register(int connfd, char* client_ip, int client_port_int)
  */
 void handle_inform(char* request)
 {
-    // Your code here. This function has been added as a guide, but feel free 
-    // to add more, or work in other parts of the code
-
-    // Error handling: 
-    // Can only recieve inform messages if on the network
-    // Check if the address the request is from is already on the network.
-    // If not, then don't handle the inform request
-
     // Convert port to host-byte-order (uint32_t)
     uint32_t port_hbol;
     memcpy(&port_hbol, &request[IP_LEN], 4);
@@ -579,9 +547,6 @@ void handle_inform(char* request)
  */
 void handle_retrieve(int connfd, char* request)
 {
-    // Your code here. This function has been added as a guide, but feel free 
-    // to add more, or work in other parts of the code
-
     // Lock retrieving mutex
     pthread_mutex_lock(&retrieving_mutex);
 
@@ -668,9 +633,6 @@ void handle_retrieve(int connfd, char* request)
 
       // Send response packet
       compsys_helper_writen(connfd, response_msg, MAX_MSG_LEN);
-
-      // Sleep statement for testing
-      sleep(1);
     }
     fclose(file);
 
@@ -684,9 +646,6 @@ void handle_retrieve(int connfd, char* request)
  */
 void* handle_server_request(void* vargp)
 {
-    // Your code here. This function has been added as a guide, but feel free 
-    // to add more, or work in other parts of the code
-
     // Detach connfd connection as an independent thread
     int connfd = *((int*) vargp);
     pthread_detach(pthread_self());
@@ -724,15 +683,12 @@ void* handle_server_request(void* vargp)
     // Handle request commands
     switch (request_header.command) {
       case COMMAND_REGISTER:
-        // printf("Got register message from %s:%u\n", request_header.ip, request_header.port);
         handle_register(connfd, peer_address.ip, atoi(peer_address.port));
         break;
       case COMMAND_RETREIVE:
-        // printf("Got retrieve message from %s:%u\n", request_header.ip, request_header.port);
         handle_retrieve(connfd, request_body);
         break;
       case COMMAND_INFORM:
-        // printf("Got inform message from %s:%u\n", request_header.ip, request_header.port);
         handle_inform(request_body);
         break;
       default:
@@ -752,9 +708,6 @@ void* handle_server_request(void* vargp)
  */
 void* server_thread()
 {
-    // Your code here. This function has been added as a guide, but feel free 
-    // to add more, or work in other parts of the code
-
     // Open concurrent listening port (as independent thread) 
     // and make it call handle_server_request. 
     // Infinite while-loop waits for incoming connections.
@@ -852,6 +805,7 @@ int main(int argc, char **argv)
     // Setup the client and server threads 
     pthread_t client_thread_id;
     pthread_t server_thread_id;
+    printf("%s, \n", peer_address.ip);
     if (peer_address.ip[0] != 'x' && peer_address.port[0] != 'x')
     {   
         pthread_create(&client_thread_id, NULL, client_thread, &peer_address);
@@ -870,9 +824,6 @@ int main(int argc, char **argv)
     exit(EXIT_SUCCESS);
 }
 
-
-
-
 // Helper function converting Reply Header to host byte order
 void reply_to_host(ReplyHeader_t* reply_header) {
   reply_header->length = ntohl(reply_header->length);
@@ -888,4 +839,3 @@ void reply_to_net(ReplyHeader_t* reply_header) {
   reply_header->this_block = htonl(reply_header->this_block);
   reply_header->block_count = htonl(reply_header->block_count);
 }
-
