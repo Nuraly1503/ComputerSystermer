@@ -8,22 +8,25 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
 
   long int pc = start_addr;  // Program counter: address of the next instruction
   long int inst_cnt = 0; // Instruction counter
-  int word;
-  int tmp;
-  int opcode;
+  unsigned word;
+  unsigned tmp;
+  unsigned opcode;
 
-  while (inst_cnt <= 10) {
+  while (inst_cnt <= 5) {
 
+    // Read word (instruction set)
     word = memory_rd_w(mem, pc);
 
     // Word to byte array
     // use bitwise masking
     tmp = (word << 25);
     opcode = (tmp >> 25);
+    pc += 4;
 
-    printf("%i\n", word);
-    printf("%i\n", tmp);
-    printf("%i\n", opcode);
+    printf("word: %i\n", word);
+    printf("tmp: %i\n", tmp);
+    printf("opcode: %u\n", opcode);
+    printf("pc: %0lx\n", pc);
    
     // Increase instruction count
     inst_cnt++;
@@ -31,17 +34,26 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     // Pattern matching
     // switch statement
     switch(opcode) {
-      case 55: //LUI
+      case 19:
+        printf("MV/ADDI\n");
+        break;
+      case 23:
+        printf("AUIPC\n");
+        break;
+      case 55:
         printf("LUI\n");
-        return inst_cnt;
+        break;
+      case 103:
+        printf("JALR\n");
+        break;
+
       // If li	a7,3. LI = ADDI
       // then program is done and out c code should terminal
       // it is an ecall
       case 115: //1110011
         return inst_cnt;
-      default:
-        return;
     }
   }
 
+  return inst_cnt;
 }
