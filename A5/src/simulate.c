@@ -34,7 +34,7 @@ void funct3(unsigned word) {
   funct3 
   funct3 = word >> OPCODE_LEN + RD_LEN;
   funct3 = funct3 << OPCODE_LEN + RD_LEN + 
-
+  //this is comment
 
   switch 
 }
