@@ -17,7 +17,7 @@ unsigned get_opcode(unsigned word) {
   opcode = word << (INSTR_LEN - OPCODE_LEN);
   opcode = opcode >> (INSTR_LEN - OPCODE_LEN);
   return opcode;
-};
+}
 
 unsigned get_rd(unsigned word) {
   unsigned rd;
@@ -44,11 +44,12 @@ unsigned get_rs2(unsigned word) {
   unsigned rs2;
   rs2 = word >> (OPCODE_LEN + RD_LEN + FUNCT3_LEN + RS1_LEN);
   rs2 = rs2 & 0x1F;
+  return rs2;
 }
 
 unsigned get_funct7(unsigned word) {
   unsigned funct7;
-  funct7 >> (INSTR_LEN - FUNCT7_LEN);
+  funct7 = word >> (INSTR_LEN - FUNCT7_LEN);
   return funct7;
 }
 
@@ -56,22 +57,19 @@ unsigned get_funct7(unsigned word) {
 
 long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE *log_file) {
 
+  unsigned reg[REGISTER_LEN];
   long int pc = start_addr;  // Program counter: address of the next instruction
   long int inst_cnt = 0; // Instruction counter
   unsigned word;
-  unsigned tmp;
   unsigned opcode;
   unsigned funct3;
 
-  while (inst_cnt <= 50) {
+  while (inst_cnt <= 10) {
 
     // Read word (instruction set)
     word = memory_rd_w(mem, pc);
 
-    // Word to byte array
-    // use bitwise masking
-    // tmp = (word << 25);
-    // opcode = (tmp >> 25);
+    // Decode instruction set
     opcode = get_opcode(word);
     funct3 = get_funct3(word);
 
@@ -80,7 +78,6 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     pc += 4;
 
     printf("word: %i\n", word);
-    printf("tmp: %i\n", tmp);
     printf("opcode: %u\n", opcode);
     printf("funct3: %u\n", funct3);
     printf("pc: %0lx\n", pc);
@@ -89,7 +86,6 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     inst_cnt++;
 
     // Pattern matching
-    // switch statement
     switch(opcode) {
       case 19:
         printf("MV/ADDI\n");
