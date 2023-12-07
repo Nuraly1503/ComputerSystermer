@@ -2,10 +2,11 @@
 #include "assembly.h"
 #include <stdio.h>
 
-#define WORD_SIZE  32
+#define REGISTER_SIZE 32
 
 long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE *log_file) {
 
+  int reg[REGISTER_SIZE];
   long int pc = start_addr;  // Program counter: address of the next instruction
   long int inst_cnt = 0; // Instruction counter
   unsigned word;
@@ -34,26 +35,59 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     // Pattern matching
     // switch statement
     switch(opcode) {
-      case 19:
-        printf("MV/ADDI\n");
+      case 55:
+        printf("LUI\n");
         break;
       case 23:
         printf("AUIPC\n");
         break;
-      case 55:
-        printf("LUI\n");
+      case 111:
+        printf("JAL\n");
         break;
       case 103:
         printf("JALR\n");
         break;
+      case 99:
+        // Hjælpefunction til type B
+        break;
+      case 3:
+        // Hjælpefunctio type I
+        break;
+      case 35:
+        //hjælpefunction til type S
+        break;
+      case 19:
+        //Hjækpefunction til type I  plus shamtforskellig fra 3
+        break; 
+      case 51:
+        // Hjælpe function til ? plus standard extensions.
+        break;
+      // case 19:
+      //   printf("MV/ADDI\n");
+      //   break;
 
       // If li	a7,3. LI = ADDI
       // then program is done and out c code should terminal
       // it is an ecall
       case 115: //1110011
         return inst_cnt;
+        break;
+      default:
+        break;
     }
   }
-
+  // finder_function(opcode);
   return inst_cnt;
 }
+
+void type_B (unsigned word ) 
+{
+
+  switch(1)// Func3 {
+  {
+    case 
+  }
+
+}
+
+
