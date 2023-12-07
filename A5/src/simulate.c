@@ -53,6 +53,23 @@ unsigned get_funct7(unsigned word) {
   return funct7;
 }
 
+void ecall(unsigned var, unsigned reg[]) {
+  switch(var) {
+    case 1:
+      // returner "getchar()" i A0
+      break;
+    case 2:
+      // udfør "putchar(c)", hvor c tages fra A0
+      break;
+    case 3:
+    case 93:
+      // afslut simulationen
+      break;
+    default:
+      break;
+  }
+}
+
 
 
 long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE *log_file) {
@@ -72,7 +89,6 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     // Decode instruction set
     opcode = get_opcode(word);
     funct3 = get_funct3(word);
-
 
     // Program counter
     pc += 4;
@@ -103,8 +119,15 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
       // If li	a7,3. LI = ADDI
       // then program is done and out c code should terminal
       // it is an ecall
-      case 115: //1110011
-        return inst_cnt;
+      case 115:
+        unsigned a7;
+        a7 = reg[7];
+        if (a7 == 3 || a7 == 93) {
+          // Terminate program
+          return inst_cnt;
+        }
+        ecall(a7, reg);
+        break;
     }
   }
 
