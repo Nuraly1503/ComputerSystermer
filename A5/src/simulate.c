@@ -98,7 +98,7 @@ void ecall(int reg[]) {
 
 // }
 
-void type_I (unsigned long word, int reg[]) {
+void type_I_copy (unsigned long word, int reg[]) {
   unsigned funct3 = get_funct3(word);
 
   switch(funct3) {
@@ -157,25 +157,23 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
         printf("JALR\n");
         break;
       case 99:
-        // Hjælpefunction til type B
+        type_B(word);
+        break;
+      case 51:
+        // helper_extension(word); // helper_type_R
+        // To differentiate between ex or type_R
+        ex_or_nah(word);
         break;
       case 3:
-        // Hjælpefunctio type I
+        type_I(word);
         break;
       case 35:
-        //hjælpefunction til type S
+        type_S(word);
         break;
+      //type_S2
       case 19:
-        //Hjækpefunction til type I  plus shamtforskellig fra 3
-        type_I(word, reg);
-        break; 
-      case 51:
-        // Hjælpe function til ? plus standard extensions.
+        type_S2(word);
         break;
-      // case 19:
-      //   printf("MV/ADDI\n");
-      //   break;
-
       // If li	a7,3. LI = ADDI
       // then program is done and out c code should terminal
       // it is an ecall
@@ -191,4 +189,204 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
   }
   // finder_function(opcode);
   return inst_cnt;
+}
+
+// 1100011
+void type_B (unsigned word ) 
+{
+  unsigned func; //= get_funct3(word);
+
+
+  switch(func)// Func3 {
+  {
+    case 0:
+      printf("BEQ\n");
+      break;
+    case 1:
+      printf("BNE\n");
+      break;
+    case 4:
+      printf("BLT\n");
+      break;
+    case 5:
+      printf("BGE\n");
+      break;
+    case 6:
+      printf("BLTU\n");
+      break;
+    case 7:
+      printf("BGEU\n");
+      break;
+  };
+}
+
+// 0000011
+void type_I (unsigned word ) 
+{
+  unsigned func; //= get_funct3(word);
+
+  switch (func)
+  {
+  case 0:
+    printf("LB\n");
+    break;
+  case 1:
+    printf("LH\n");
+    break;
+  case 2:
+    printf("LW\n");
+    break;
+  case 4:
+    printf("LBU\n");
+    break;
+  case 5:
+    printf("LHU\n");
+    break;
+  }
+}
+
+
+//0100011
+void type_S (unsigned word ) 
+{
+  unsigned func; //= get_funct3(word);
+
+  switch (func)
+  {
+  case 0:
+    printf("SB\n");
+    break;
+  case 1:
+    printf("SH\n");
+    break;
+  case 2:
+    printf("SW\n");
+    break;
+  }
+}
+
+//0010011
+void type_S2 (unsigned word)
+{
+  unsigned func; // = get_funct3(word);
+
+  switch (func)
+  {
+  case 0:
+    printf("ADDI\n");
+    break;
+  case 2:
+    printf("SLTI\n");
+    break;
+  case 3:
+    printf("SLTIU\n");
+    break;
+  case 4:
+    printf("XORI\n");
+    break;
+  case 6:
+    printf("ORI\n");
+    break;
+  case 7:
+    printf("ANDI\n");
+    break;
+  
+  // Next ones are different types with the shmat
+  
+  case 1:
+    printf("SLLI\n");
+    break;
+  case 5:
+    printf("SRLI/SRAI\n");            //OBS
+    break;
+  }
+}
+
+
+//0110011
+void type_R (unsigned word ) 
+{
+  unsigned func; //= get_funct3(word);
+
+  switch (func)
+  {
+  case 0:
+    printf("ADD/SUB\n");               /// OBS 
+    break;
+  case 1:
+    printf("SLL\n");
+    break;
+  case 2:
+    printf("SLT\n");
+    break;
+  case 3:
+    printf("SLTU\n");
+    break;
+  case 4:
+    printf("XOR\n");
+    break;
+  case 5:
+    printf("SRL/SRA\n");             /// OBS
+    break;
+  case 6:
+    printf("OR\n");
+    break;
+  case 7:
+    printf("AND\n");
+    break;
+  }
+}
+
+// Mash together type_R
+//0110011
+void helper_extension (unsigned word)
+{
+  unsigned func; //= get_funct3(word);
+
+  switch (func)
+  {
+    case 0:
+      printf("MUL\n");
+      break;
+    case 1:
+      printf("MULH\n");
+      break;
+    case 2:
+      printf("MULHSU\n");
+      break;
+    case 3:
+      printf("MULHU\n");
+      break;
+    case 4:
+      printf("DIV\n");
+      break;
+    case 5:
+      printf("DIVU\n");
+      break;
+    case 6:
+      printf("REM\n");
+      break;
+    case 7:
+      printf("REMU\n");
+      break;
+  }
+}
+
+
+void ex_or_nah (unsigned word)
+{
+  unsigned funct7; //= get_funct7(word);
+
+  switch (funct7)
+  {
+    case 0:
+      helper_type_R(word);
+      break;
+    case 32:
+      helper_type_R(word);
+      break;
+    case 1:
+      helper_extension(word);
+      break;
+  }
 }
