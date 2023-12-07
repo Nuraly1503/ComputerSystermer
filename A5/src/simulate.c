@@ -60,15 +60,23 @@ unsigned get_funct7(unsigned word) {
   return funct7;
 }
 
+int get_imm11(unsigned word) {
+  int imm11;
+  imm11 = word >> (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
+  return imm11;
+}
+
 void ecall(int reg[]) {
   unsigned var = reg[7];
   switch(var) {
     case 1:
       // returner "getchar()" i A0
+      printf("getchar()\n");
       reg[0] = getchar();
       break;
     case 2:
       // udfør "putchar(c)", hvor c tages fra A0
+      printf("putchar()\n");
       putchar(reg[0]);
       break;
     case 3:
@@ -80,6 +88,29 @@ void ecall(int reg[]) {
   }
 }
 
+// void type_B (unsigned word ) 
+// {
+
+//   // switch(1)// Func3 {
+//   // {
+//   //   case 
+//   // }
+
+// }
+
+void type_I (unsigned long word, int reg[]) {
+  unsigned funct3 = get_funct3(word);
+
+  switch(funct3) {
+    case 0: ;// ADDI
+      printf("ADDI\n");
+      unsigned rs1 = get_rs1(word);
+      int imm11 = get_imm11(word);
+      printf("imm11: %i\n", imm11);
+      reg[rs1] = imm11;
+      printf("reg[rs1]: %i\n", reg[rs1]);
+  }
+}
 
 
 long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE *log_file) {
@@ -87,11 +118,11 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
   int reg[REGISTER_LEN];
   long int pc = start_addr;  // Program counter: address of the next instruction
   long int inst_cnt = 0; // Instruction counter
-  unsigned word;
+  unsigned long word;
   unsigned opcode;
   unsigned funct3;
 
-  while (inst_cnt <= 10) {
+  while (inst_cnt <= 50) {
 
     // Read word (instruction set)
     word = memory_rd_w(mem, pc);
@@ -103,10 +134,10 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     // Program counter
     pc += 4;
 
-    printf("word: %i\n", word);
+    printf("word: %lu\n", word);
     printf("opcode: %u\n", opcode);
     printf("funct3: %u\n", funct3);
-    printf("pc: %0lx\n", pc);
+    printf("pc: %0lx\n", pc - 4);
    
     // Increase instruction count
     inst_cnt++;
@@ -136,6 +167,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
         break;
       case 19:
         //Hjækpefunction til type I  plus shamtforskellig fra 3
+        type_I(word, reg);
         break; 
       case 51:
         // Hjælpe function til ? plus standard extensions.
@@ -148,6 +180,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
       // then program is done and out c code should terminal
       // it is an ecall
       case 115:
+        printf("ecall\n");
         if (reg[7] == TERMINATE_3 || reg[7] == TERMINATE_93) {
           // Terminate program
           return inst_cnt;
@@ -159,15 +192,3 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
   // finder_function(opcode);
   return inst_cnt;
 }
-
-void type_B (unsigned word ) 
-{
-
-  // switch(1)// Func3 {
-  // {
-  //   case 
-  // }
-
-}
-
-
