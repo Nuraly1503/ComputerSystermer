@@ -5,25 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Register
-#define REGISTER_LEN  32
-#define a0            10
-#define a7            17
-
-// Instruction set
-#define INSTR_LEN     32
-#define OPCODE_LEN    7
-#define RD_LEN        5
-#define FUNCT3_LEN    3
-#define RS1_LEN       5
-#define RS2_LEN       5
-#define FUNCT7_LEN    7
-
-// Ecall
-#define TERMINATE_3   3 
-#define TERMINATE_93  93
-
-
 // Instruction Set helper functions
 unsigned get_opcode(unsigned word) {
   unsigned opcode;
@@ -69,22 +50,30 @@ unsigned get_funct7(unsigned word) {
 int get_imm11(unsigned word) {
   int imm11;
   imm11 = word >> (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
+  imm11 = imm11 << (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
   return imm11;
 }
 
+int get_imm20(unsigned word) {
+  uint32_t imm20;
+  imm20 = word >> (OPCODE_LEN + RD_LEN);
+  imm20 = imm20 << (OPCODE_LEN + RD_LEN);
+  return imm20;
+}
+
 // Ecall helper function
-void ecall(RiscvRegister_t* inst_reg) {
-  unsigned var = inst_reg->rg[a7];
+void ecall(RiscvRegister_t* rscv_reg) {
+  unsigned var = rscv_reg->rg[a7];
   switch(var) {
     case 1:
       // returner "getchar()" i A0
       printf("getchar()\n");
-      inst_reg->rg[a0] = getchar();
+      rscv_reg->rg[a0] = getchar();
       break;
     case 2:
       // udfør "putchar(c)", hvor c tages fra A0
       printf("putchar()\n");
-      putchar(inst_reg->rg[a0]);
+      putchar(rscv_reg->rg[a0]);
       break;
     case 3:
     case 93:
@@ -174,27 +163,29 @@ void type_S (unsigned word )
 }
 
 //0010011
-void type_S2 (unsigned word, RiscvRegister_t* inst_reg)
+void type_S2 (unsigned word, RiscvRegister_t* rscv_reg)
 {
-  unsigned func;
+  unsigned funct3;
   unsigned rs1;
   unsigned rd;
   unsigned imm11;
 
-  func = get_funct3(word);
+  funct3 = get_funct3(word);
+  rd = get_rd(word);
+  rs1 = get_rs1(word);
+  imm11 = get_imm11(word);
 
-  switch (func)
+  // Debug
+  printf("rs1: %u\n", rs1);
+  printf("imm11: %i\n", imm11);
+  printf("rd: %u\n", rd);
+
+  switch (funct3)
   {
   case 0:
     printf("ADDI\n");
-      rs1 = get_rs1(word);
-      imm11 = get_imm11(word);
-      rd = get_rd(word);
-      printf("rs1: %u\n", rs1);
-      printf("imm11: %i\n", imm11);
-      printf("rd: %u\n", rd);
-      inst_reg->rg[rd] = imm11 + rs1;
-      printf("reg[rs1]: %i\n", inst_reg->rg[rd]);
+      rscv_reg->rg[rd] = imm11 + rs1;
+      printf("reg[rs1]: %i\n", rscv_reg->rg[rd]);
     break;
   case 2:
     printf("SLTI\n");
@@ -207,16 +198,8 @@ void type_S2 (unsigned word, RiscvRegister_t* inst_reg)
     break;
   case 6:
     printf("ORI\n");
-    rs1 = get_rs1(word);
-    imm11 = get_imm11(word);
-    rd = get_rd(word);
-    printf("rs1: %u\n", rs1);
-    printf("imm11: %i\n", imm11);
-    printf("rd: %u\n", rd);
-    int tmp = imm11 | rs1;
-    printf("tmp: %i\n", tmp);
-    inst_reg->rg[rd] = tmp;
-    printf("rg[rd]: %i\n", inst_reg->rg[rd]);
+    rscv_reg->rg[rd] = imm11 | rs1;
+    printf("rg[rd]: %i\n", rscv_reg->rg[rd]);
     break;
   case 7:
     printf("ANDI\n");
@@ -324,29 +307,43 @@ void ex_or_nah (unsigned word)
 
 long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE *log_file) {
 
-  struct RiscvRegister inst_reg;
+  struct RiscvRegister rscv_reg;
   long int pc = start_addr;  // Program counter: address of the next instruction
   long int inst_cnt = 0; // Instruction counter
   unsigned long word;
-  unsigned opcode;
-  unsigned funct3;
 
-  while (inst_cnt <= 5) {
+  // Insttruction set
+  unsigned opcode;
+  unsigned rd;
+  unsigned funct3;
+  int imm11;
+  int imm20;
+  unsigned rs1;
+  unsigned rs2;
+
+
+  while (inst_cnt <= 50) {
 
     // Read word (instruction set)
     word = memory_rd_w(mem, pc);
 
     // Decode instruction set
     opcode = get_opcode(word);
+    rd = get_rd(word);
     funct3 = get_funct3(word);
+    rs1 = get_rs1(word);
+    rs2 = get_rs2(word);
+    imm20 = get_imm20(word);
+    imm11 = get_imm11(word);
 
     // Program counter
     pc += 4;
-
+    
     printf("word: %lu\n", word);
     printf("opcode: %u\n", opcode);
     printf("funct3: %u\n", funct3);
     printf("pc: %0lx\n", pc - 4);
+    printf("imm11: %i\n", imm11);
    
     // Increase instruction count
     inst_cnt++;
@@ -355,15 +352,21 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     switch(opcode) {
       case 55:
         printf("LUI\n");
+        printf("Decimal: %i\n", imm20);
+        rscv_reg.rg[rd] = imm20;
         break;
       case 23:
         printf("AUIPC\n");
         break;
       case 111:
         printf("JAL\n");
+        rscv_reg.rg[rd] = pc; // pc + 4
+        pc = (pc - 4) + imm20;
         break;
       case 103:
         printf("JALR\n");
+        rscv_reg.rg[rd] = pc; // pc + 4
+        pc = rscv_reg.rg[rs1] + imm11; 
         break;
       case 99:
         type_B(word);
@@ -381,20 +384,21 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
         break;
       //type_S2
       case 19:
-        type_S2(word, &inst_reg);
+        type_S2(word, &rscv_reg);
         break;
       // If li	a7,3. LI = ADDI
       // then program is done and out c code should terminal
       // it is an ecall
       case 115:
         printf("ecall\n");
-        if (inst_reg.rg[17] == TERMINATE_3 || inst_reg.rg[17] == TERMINATE_93) {
+        if (rscv_reg.rg[17] == TERMINATE_3 || rscv_reg.rg[17] == TERMINATE_93) {
           // Terminate program
           return inst_cnt;
         }
-        ecall(&inst_reg);
+        ecall(&rscv_reg);
         break;
     }
+    printf("\n");
   }
   // finder_function(opcode);
   return inst_cnt;
