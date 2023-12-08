@@ -50,7 +50,15 @@ unsigned get_funct7(unsigned word) {
 int get_imm11(unsigned word) {
   int imm11;
   imm11 = word >> (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
-  imm11 = imm11 << (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
+  //imm11 = imm11 << (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
+  return imm11;
+}
+
+int get_imm11_type_I(unsigned word) {
+  int imm11;
+  imm11 = word >> (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
+  //imm11 = imm11 << (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
+  imm11 = imm11 ^ 0x80000080;
   return imm11;
 }
 
@@ -343,7 +351,10 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     printf("opcode: %u\n", opcode);
     printf("funct3: %u\n", funct3);
     printf("pc: %0lx\n", pc - 4);
+    printf("rd: %u\n", rd);
+    printf("rs1: %u\n", rs1);
     printf("imm11: %i\n", imm11);
+    printf("imm20: %i\n", imm20);
    
     // Increase instruction count
     inst_cnt++;
@@ -357,6 +368,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
         break;
       case 23:
         printf("AUIPC\n");
+        rscv_reg.rg[rd] = (pc - 4) + imm20;
         break;
       case 111:
         printf("JAL\n");
@@ -366,7 +378,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
       case 103:
         printf("JALR\n");
         rscv_reg.rg[rd] = pc; // pc + 4
-        pc = rscv_reg.rg[rs1] + imm11; 
+        pc = rscv_reg.rg[rs1] + imm11;
         break;
       case 99:
         type_B(word);
