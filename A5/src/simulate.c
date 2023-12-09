@@ -1,77 +1,14 @@
-#include "./memory.h"
-#include "./assembly.h"
-#include "./simulate.h"
+#include "memory.h"
+#include "assembly.h"
+#include "simulate.h"
+#include "decode_helpers.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-// Instruction Set helper functions
-unsigned get_opcode(unsigned word) {
-  unsigned opcode;
-  opcode = word << (INSTR_LEN - OPCODE_LEN);
-  opcode = opcode >> (INSTR_LEN - OPCODE_LEN);
-  return opcode;
-}
-
-unsigned get_rd(unsigned word) {
-  unsigned rd;
-  rd = word >> OPCODE_LEN;
-  rd = rd & 0x1F;
-  return rd;
-}
-
-unsigned get_funct3(unsigned word) {
-  unsigned funct3;
-  funct3 = word >> (OPCODE_LEN + RD_LEN);
-  funct3 = funct3 & 0x7;
-  return funct3;
-}
-
-unsigned get_rs1(unsigned word) {
-  unsigned rs1;
-  rs1 = word >> (OPCODE_LEN + RD_LEN + FUNCT3_LEN);
-  rs1 = rs1 & 0xF;
-  return rs1;
-}
-
-unsigned get_rs2(unsigned word) {
-  unsigned rs2;
-  rs2 = word >> (OPCODE_LEN + RD_LEN + FUNCT3_LEN + RS1_LEN);
-  rs2 = rs2 & 0x1F;
-  return rs2;
-}
-
-unsigned get_funct7(unsigned word) {
-  unsigned funct7;
-  funct7 = word >> (INSTR_LEN - FUNCT7_LEN);
-  return funct7;
-}
-
-int get_imm11(unsigned word) {
-  int imm11;
-  imm11 = word >> (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
-  //imm11 = imm11 << (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
-  return imm11;
-}
-
-int get_imm11_type_I(unsigned word) {
-  int imm11;
-  imm11 = word >> (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
-  //imm11 = imm11 << (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
-  imm11 = imm11 ^ 0x80000080;
-  return imm11;
-}
-
-int get_imm20(unsigned word) {
-  uint32_t imm20;
-  imm20 = word >> (OPCODE_LEN + RD_LEN);
-  imm20 = imm20 << (OPCODE_LEN + RD_LEN);
-  return imm20;
-}
-
-// Ecall helper function
+// Ecall
 void ecall(RiscvRegister_t* rscv_reg) {
-  unsigned var = rscv_reg->rg[a7];
+  uint32_t var = rscv_reg->rg[a7];
   switch(var) {
     case 1:
       // returner "getchar()" i A0
@@ -98,9 +35,9 @@ void ecall(RiscvRegister_t* rscv_reg) {
  */
 
 // 1100011
-void type_B (unsigned word ) 
+void type_B (uint32_t word ) 
 {
-  unsigned func = get_funct3(word);
+  uint32_t func = get_funct3(word);
 
   switch(func)
   {
@@ -126,9 +63,9 @@ void type_B (unsigned word )
 }
 
 // 0000011
-void type_I (unsigned word ) 
+void type_I (uint32_t word ) 
 {
-  unsigned func = get_funct3(word);
+  uint32_t func = get_funct3(word);
 
   switch (func)
   {
@@ -152,9 +89,9 @@ void type_I (unsigned word )
 
 
 //0100011
-void type_S (unsigned word ) 
+void type_S (uint32_t word ) 
 {
-  unsigned func = get_funct3(word);
+  uint32_t func = get_funct3(word);
 
   switch (func)
   {
@@ -171,12 +108,12 @@ void type_S (unsigned word )
 }
 
 //0010011
-void type_S2 (unsigned word, RiscvRegister_t* rscv_reg)
+void type_S2 (uint32_t word, RiscvRegister_t* rscv_reg)
 {
-  unsigned funct3;
-  unsigned rs1;
-  unsigned rd;
-  unsigned imm11;
+  uint32_t funct3;
+  uint32_t rs1;
+  uint32_t rd;
+  uint32_t imm11;
 
   funct3 = get_funct3(word);
   rd = get_rd(word);
@@ -193,7 +130,7 @@ void type_S2 (unsigned word, RiscvRegister_t* rscv_reg)
   case 0:
     printf("ADDI\n");
       rscv_reg->rg[rd] = imm11 + rs1;
-      printf("reg[rs1]: %i\n", rscv_reg->rg[rd]);
+      printf("reg[rs1]: %lli\n", rscv_reg->rg[rd]);
     break;
   case 2:
     printf("SLTI\n");
@@ -207,7 +144,7 @@ void type_S2 (unsigned word, RiscvRegister_t* rscv_reg)
   case 6:
     printf("ORI\n");
     rscv_reg->rg[rd] = imm11 | rs1;
-    printf("rg[rd]: %i\n", rscv_reg->rg[rd]);
+    printf("rg[rd]: %lli\n", rscv_reg->rg[rd]);
     break;
   case 7:
     printf("ANDI\n");
@@ -225,9 +162,9 @@ void type_S2 (unsigned word, RiscvRegister_t* rscv_reg)
 }
 
 //0110011
-void type_R (unsigned word ) 
+void type_R (uint32_t word ) 
 {
-  unsigned func = get_funct3(word);
+  uint32_t func = get_funct3(word);
 
   switch (func)
   {
@@ -260,9 +197,9 @@ void type_R (unsigned word )
 
 // Mash together type_R
 //0110011
-void helper_extension (unsigned word)
+void helper_extension (uint32_t word)
 {
-  unsigned func = get_funct3(word);
+  uint32_t func = get_funct3(word);
 
   switch (func)
   {
@@ -294,9 +231,9 @@ void helper_extension (unsigned word)
 }
 
 
-void ex_or_nah (unsigned word)
+void ex_or_nah (uint32_t word)
 {
-  unsigned funct7 = get_funct7(word);
+  uint32_t funct7 = get_funct7(word);
 
   switch (funct7)
   {
@@ -315,25 +252,27 @@ void ex_or_nah (unsigned word)
 
 long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE *log_file) {
 
+  // Struct for risc-v register and instructions
   struct RiscvRegister rscv_reg;
-  long int pc = start_addr;  // Program counter: address of the next instruction
-  long int inst_cnt = 0; // Instruction counter
-  unsigned long word;
+  rscv_reg.PC = start_addr;
 
+  uint64_t inst_cnt = 0; // Instruction counter
+  uint32_t word; // Instruction to be decoded
+  
   // Insttruction set
-  unsigned opcode;
-  unsigned rd;
-  unsigned funct3;
+  uint32_t opcode;
+  uint32_t rd;
+  uint32_t funct3;
   int imm11;
   int imm20;
-  unsigned rs1;
-  unsigned rs2;
+  uint32_t rs1;
+  uint32_t rs2;
 
 
   while (inst_cnt <= 50) {
 
     // Read word (instruction set)
-    word = memory_rd_w(mem, pc);
+    word = memory_rd_w(mem, rscv_reg.PC);
 
     // Decode instruction set
     opcode = get_opcode(word);
@@ -343,19 +282,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     rs2 = get_rs2(word);
     imm20 = get_imm20(word);
     imm11 = get_imm11(word);
-
-    // Program counter
-    pc += 4;
     
-    printf("word: %lu\n", word);
-    printf("opcode: %u\n", opcode);
-    printf("funct3: %u\n", funct3);
-    printf("pc: %0lx\n", pc - 4);
-    printf("rd: %u\n", rd);
-    printf("rs1: %u\n", rs1);
-    printf("imm11: %i\n", imm11);
-    printf("imm20: %i\n", imm20);
-   
     // Increase instruction count
     inst_cnt++;
 
@@ -368,19 +295,19 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
         break;
       case 23:
         printf("AUIPC\n");
-        rscv_reg.rg[rd] = (pc - 4) + imm20;
+        rscv_reg.rg[rd] = rscv_reg.PC + imm20;
         break;
       case 111:
         printf("JAL\n");
-        rscv_reg.rg[rd] = pc; // pc + 4
-        pc = (pc - 4) + imm20;
+        rscv_reg.rg[rd] = rscv_reg.PC + 4; // pc + 4
+        rscv_reg.PC = rscv_reg.PC + imm20;
         break;
       case 103:
         printf("JALR\n");
-        rscv_reg.rg[rd] = pc; // pc + 4
-        pc = rscv_reg.rg[rs1] + imm11;
+        rscv_reg.rg[rd] = rscv_reg.PC + 4; // pc + 4
+        rscv_reg.PC = rscv_reg.rg[rs1] + imm11;
         break;
-      case 99:
+      case 99:  
         type_B(word);
         break;
       case 51:
@@ -410,6 +337,16 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
         ecall(&rscv_reg);
         break;
     }
+
+    // Debug
+    printf("word: %u\n", word);
+    printf("opcode: %u\n", opcode);
+    printf("funct3: %u\n", funct3);
+    printf("pc: %0llx\n", rscv_reg.PC);
+    printf("rd: %u\n", rd);
+    printf("rs1: %u\n", rs1);
+    printf("imm11: %i\n", imm11);
+    printf("imm20: %i\n", imm20);
     printf("\n");
   }
   // finder_function(opcode);
