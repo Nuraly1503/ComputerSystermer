@@ -28,4 +28,3 @@ int32_t get_imm_S(uint32_t word);
 int32_t get_imm_B(uint32_t word);
 int32_t get_imm_U(uint32_t word);
 int32_t get_imm_J(uint32_t word);
-
