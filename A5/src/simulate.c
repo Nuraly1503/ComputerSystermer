@@ -207,15 +207,14 @@ void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg)
 
   // Debug
   printf("rs1: %u\n", rs1);
-  printf("imm11: %i\n", imm);
+  printf("imm_I: %i\n", imm);
   printf("rd: %u\n", rd);
 
   switch (funct3)
   {
   case 0:
-    printf("ADDI\n");
-      rscv_reg->rg[rd] = imm + rscv_reg->rg[rs1];
-      printf("reg[rs1]: %lli\n", rscv_reg->rg[rd]);
+    printf("ADDI\n"); // I-type
+    rscv_reg->rg[rd] = rs1 + get_imm_I(word);
     break;
   case 2:
     // Set less than immediate signed
@@ -247,9 +246,8 @@ void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg)
     rscv_reg->rg[rd] = rscv_reg->rg[rs1] ^ imm;
     break;
   case 6:
-    printf("ORI\n");
-    rscv_reg->rg[rd] = imm | rscv_reg->rg[rs1];
-    printf("rg[rd]: %lli\n", rscv_reg->rg[rd]);
+    printf("ORI\n"); // I-type
+    rscv_reg->rg[rd] = get_imm_I(word) | rs1;
     break;
   case 7:
     printf("ANDI\n");
@@ -445,12 +443,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
   // Insttruction set
   uint32_t opcode;
   uint32_t rd;
-  uint32_t funct3;
-  int imm_i;
-  int imm_j;
   uint32_t rs1;
-  // uint32_t rs2;
-
 
   while (inst_cnt <= 50) {
 
@@ -459,37 +452,41 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
 
     // Decode instruction set
     opcode = get_opcode(word);
-    rd = get_rd(word);
-    funct3 = get_funct3(word);
     rs1 = get_rs1(word);
-    // rs2 = get_rs2(word);
-    imm_j = get_imm_J(word);
-    imm_i = get_imm_I(word);
+    rd = get_rd(word);
     
     // Increase instruction count
     inst_cnt++;
 
+    // Debug
+    printf("word: %u\n", word);
+    printf("opcode: %u\n", opcode);
+    printf("pc: %0llx\n", rscv_reg.PC);
+    printf("rd: %u\n", rd);
+    printf("rs1: %u\n", rs1);
+
     // Pattern matching
     switch(opcode) {
       case 55:
-        printf("LUI\n");
-        printf("Decimal: %i\n", imm_j);
-        rscv_reg.rg[rd] = imm_j;
+        rscv_reg.rg[rd] = get_imm_U(word);
+        printf("LUI\n"); // U-type
         break;
       case 23:
-        printf("AUIPC\n");
-        rscv_reg.rg[rd] = rscv_reg.PC + imm_j;
+        rscv_reg.rg[rd] = rscv_reg.PC + get_imm_U(word);
+        printf("imm-u: %i\n", get_imm_U(word));
+        printf("AUIPC\n"); // U-type
         break;
       case 111:
-        printf("JAL\n");
-        rscv_reg.rg[rd] = rscv_reg.PC + 4; // pc + 4
-        rscv_reg.PC = rscv_reg.PC + imm_j;
-        break;
+        rscv_reg.rg[rd] = rscv_reg.PC + 4;
+        rscv_reg.PC = rscv_reg.PC + get_imm_J(word);
+        printf("JAL\n"); // J-type
+        goto jump;
       case 103:
-        printf("JALR\n");
-        rscv_reg.rg[rd] = rscv_reg.PC + 4; // pc + 4
-        rscv_reg.PC = rscv_reg.rg[rs1] + imm_i;
-        break;
+        rscv_reg.rg[rd] = rscv_reg.PC + 4;
+        rscv_reg.PC = rscv_reg.rg[rs1] + get_imm_I(word);
+        printf("rg[1]: %0llx\n", rscv_reg.rg[1]);
+        printf("JALR\n"); // I-type
+        goto jump;
       case 99:  
         type_B(word, &rscv_reg);
         break;
@@ -521,15 +518,12 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
         break;
     }
 
-    // Debug
-    printf("word: %u\n", word);
-    printf("opcode: %u\n", opcode);
-    printf("funct3: %u\n", funct3);
-    printf("pc: %0llx\n", rscv_reg.PC);
-    printf("rd: %u\n", rd);
-    printf("rs1: %u\n", rs1);
-    printf("imm11: %i\n", imm_i);
-    printf("imm20: %i\n", imm_j);
+    // Increment PC
+    rscv_reg.PC += 4;
+
+    // JAL and JALR;
+    jump:
+
     printf("\n");
   }
   // finder_function(opcode);
