@@ -57,16 +57,48 @@ uint32_t get_funct7(uint32_t word) {
 
 
 // Immidiates helper functions
-int get_imm11(uint32_t word) {
-  int imm11;
-  imm11 = word >> (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
-  //imm11 = imm11 << (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
-  return imm11;
+// Imm are signed 32bit integers
+// Reference: https://fmash16.github.io/content/posts/riscv-emulator-in-c.html
+int32_t get_imm_I(uint32_t word) {
+  // imm[11:0] = inst[31:20]
+  int32_t imm_i;
+  imm_i = ((int32_t) word) >> (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
+  return imm_i;
 }
 
-int get_imm20(uint32_t word) {
-  uint32_t imm20;
-  imm20 = word >> (OPCODE_LEN + RD_LEN);
-  imm20 = imm20 << (OPCODE_LEN + RD_LEN);
-  return imm20;
+int32_t get_imm_S(uint32_t word) {
+  // imm[11:5|4:0] = inst[31:25|11:7]
+  int32_t imm_s;
+  imm_s = ((int32_t) (word & 0xfe000000)) >> (INSTR_LEN - OPCODE_LEN - RD_LEN)
+    | ((word >> OPCODE_LEN) & 0x1f);
+  return imm_s;
 }
+
+int32_t get_imm_B(uint32_t word) {
+  // TO DO
+  // imm[12|10:5|4:1|11] = inst[31|30:25|11:8|7]
+  int32_t imm_b;
+  // imm_b = ()
+  // imm_b = imm_b << 1;
+  return imm_b;
+}
+
+int32_t get_imm_U(uint32_t word) {
+  // imm[31:12] = inst[31:12]
+  // shifted left by 12 bits   
+  int32_t imm_u;
+  imm_u = ((int32_t) word) >> (OPCODE_LEN + RD_LEN);
+  imm_u = imm_u << (OPCODE_LEN + RD_LEN);
+  return imm_u;
+}
+
+int32_t get_imm_J(uint32_t word) {
+  // TO DO
+  // imm[20|10:1|11|19:12] = inst[31|30:21|20|19:12]
+  // shifted left by 1 bit
+  int32_t imm_j;
+  imm_j = (int32_t) word >> (RD_LEN + OPCODE_LEN);
+  imm_j = imm_j << 1;
+  return imm_j;
+}
+
