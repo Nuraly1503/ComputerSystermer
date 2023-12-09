@@ -75,11 +75,12 @@ int32_t get_imm_S(uint32_t word) {
 }
 
 int32_t get_imm_B(uint32_t word) {
-  // TO DO
   // imm[12|10:5|4:1|11] = inst[31|30:25|11:8|7]
   int32_t imm_b;
-  // imm_b = ()
-  // imm_b = imm_b << 1;
+  imm_b = ((int32_t) (word & 0x80000000) >> 19) //imm[12] = inst[31]
+    | ((word & 0x7e000000) >> 20) //imm[10:5] = inst[30:25]
+    | ((word & 0x00000f00) >> 7) //imm[4:1] = inst[11:8]
+    | ((word & 0x00000080) << 4); //imm[11] = inst[7]
   return imm_b;
 }
 
@@ -93,12 +94,12 @@ int32_t get_imm_U(uint32_t word) {
 }
 
 int32_t get_imm_J(uint32_t word) {
-  // TO DO
   // imm[20|10:1|11|19:12] = inst[31|30:21|20|19:12]
-  // shifted left by 1 bit
   int32_t imm_j;
-  imm_j = (int32_t) word >> (RD_LEN + OPCODE_LEN);
-  imm_j = imm_j << 1;
+  imm_j = ((int32_t) (word & 0x80000000) >> 11) // imm[20] = inst[31]
+    | ((word & 0x7fe00000) >> 20) // imm[10:1] = inst[30:21]
+    | ((word & 0x00100000) >> 9) // imm[11] = inst[20]
+    | (word & 0x000ff000); // imm[19:12] = inst[19:12]
   return imm_j;
 }
 
