@@ -113,24 +113,21 @@ void type_S2 (uint32_t word, RiscvRegister_t* rscv_reg)
   uint32_t funct3;
   uint32_t rs1;
   uint32_t rd;
-  uint32_t imm11;
 
   funct3 = get_funct3(word);
   rd = get_rd(word);
   rs1 = get_rs1(word);
-  imm11 = get_imm11(word);
 
   // Debug
   printf("rs1: %u\n", rs1);
-  printf("imm11: %i\n", imm11);
   printf("rd: %u\n", rd);
 
   switch (funct3)
   {
   case 0:
-    printf("ADDI\n");
-      rscv_reg->rg[rd] = imm11 + rs1;
-      printf("reg[rs1]: %lli\n", rscv_reg->rg[rd]);
+    printf("ADDI\n"); // I-type
+    rscv_reg->rg[rd] = rs1 + get_imm_I(word);
+    rscv_reg->PC = rscv_reg->PC + 4;
     break;
   case 2:
     printf("SLTI\n");
@@ -142,9 +139,9 @@ void type_S2 (uint32_t word, RiscvRegister_t* rscv_reg)
     printf("XORI\n");
     break;
   case 6:
-    printf("ORI\n");
-    rscv_reg->rg[rd] = imm11 | rs1;
-    printf("rg[rd]: %lli\n", rscv_reg->rg[rd]);
+    printf("ORI\n"); // I-type
+    rscv_reg->rg[rd] = get_imm_I(word) | rs1;
+    rscv_reg->PC = rscv_reg->PC + 4;
     break;
   case 7:
     printf("ANDI\n");
@@ -263,11 +260,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
   uint32_t opcode;
   uint32_t rd;
   uint32_t funct3;
-  int imm11;
-  int imm20;
   uint32_t rs1;
-  uint32_t rs2;
-
 
   while (inst_cnt <= 50) {
 
@@ -276,12 +269,10 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
 
     // Decode instruction set
     opcode = get_opcode(word);
-    rd = get_rd(word);
+    
     funct3 = get_funct3(word);
     rs1 = get_rs1(word);
-    rs2 = get_rs2(word);
-    imm20 = get_imm20(word);
-    imm11 = get_imm11(word);
+    rd = get_rd(word);
     
     // Increase instruction count
     inst_cnt++;
@@ -289,23 +280,22 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     // Pattern matching
     switch(opcode) {
       case 55:
-        printf("LUI\n");
-        printf("Decimal: %i\n", imm20);
-        rscv_reg.rg[rd] = imm20;
+        rscv_reg.rg[rd] = get_imm_U(word);
+        printf("LUI\n"); // U-type
         break;
       case 23:
-        printf("AUIPC\n");
-        rscv_reg.rg[rd] = rscv_reg.PC + imm20;
+        rscv_reg.rg[rd] = rscv_reg.PC + get_imm_U(word);
+        printf("AUIPC\n"); // U-type
         break;
       case 111:
-        printf("JAL\n");
-        rscv_reg.rg[rd] = rscv_reg.PC + 4; // pc + 4
-        rscv_reg.PC = rscv_reg.PC + imm20;
+        rscv_reg.rg[rd] = rscv_reg.PC + 4;
+        rscv_reg.PC = rscv_reg.PC + get_imm_J(word);
+        printf("JAL\n"); // J-type
         break;
       case 103:
-        printf("JALR\n");
         rscv_reg.rg[rd] = rscv_reg.PC + 4; // pc + 4
-        rscv_reg.PC = rscv_reg.rg[rs1] + imm11;
+        rscv_reg.PC = (rscv_reg.rg[rs1] + get_imm_I(word)) & ~1;
+        printf("JALR\n"); // I-type
         break;
       case 99:  
         type_B(word);
@@ -345,8 +335,8 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     printf("pc: %0llx\n", rscv_reg.PC);
     printf("rd: %u\n", rd);
     printf("rs1: %u\n", rs1);
-    printf("imm11: %i\n", imm11);
-    printf("imm20: %i\n", imm20);
+    //printf("imm11: %i\n", imm11);
+    //printf("imm20: %i\n", imm20);
     printf("\n");
   }
   // finder_function(opcode);
