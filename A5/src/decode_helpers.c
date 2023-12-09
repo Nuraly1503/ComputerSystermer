@@ -102,4 +102,3 @@ int32_t get_imm_J(uint32_t word) {
     | (word & 0x000ff000); // imm[19:12] = inst[19:12]
   return imm_j;
 }
-
