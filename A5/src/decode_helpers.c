@@ -62,7 +62,7 @@ uint32_t get_funct7(uint32_t word) {
 int32_t get_imm_I(uint32_t word) {
   // imm[11:0] = inst[31:20]
   int32_t imm_i;
-  imm_i = ((int32_t) word) >> (RS1_LEN + FUNCT3_LEN + RD_LEN + OPCODE_LEN);
+  imm_i = ((int32_t) word) >> 20;
   return imm_i;
 }
 
@@ -88,8 +88,8 @@ int32_t get_imm_U(uint32_t word) {
   // imm[31:12] = inst[31:12]
   // shifted left by 12 bits   
   int32_t imm_u;
-  imm_u = ((int32_t) word) >> (OPCODE_LEN + RD_LEN);
-  imm_u = imm_u << (OPCODE_LEN + RD_LEN);
+  imm_u = ((int32_t) word) >> 12;
+  imm_u = imm_u << 12;
   return imm_u;
 }
 
