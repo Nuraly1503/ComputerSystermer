@@ -8,6 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Opcodes
+#define ECALL         115
+
 // Register
 #define REGISTER_LEN  32
 #define a0            10
@@ -20,11 +23,14 @@
 // RISC-V Register
 typedef struct RiscvRegister {
   int64_t rg[REGISTER_LEN];  // 32 risc-v registers (x0-x31)
-  uint64_t PC;  // Program counter: address of the next instruction
+  int64_t PC;  // Program counter: address of the next instruction
   struct memory *mem;
-}RiscvRegister_t
+} RiscvRegister_t;
 
 // Simuler RISC-V program i givet lager og fra given start adresse
 long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE *log_file);
+
+// Helper functions
+
 
 #endif

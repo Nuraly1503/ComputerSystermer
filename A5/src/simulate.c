@@ -6,29 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Ecall
-void ecall(RiscvRegister_t* rscv_reg) {
-  uint32_t var = rscv_reg->rg[a7];
-  switch(var) {
-    case 1:
-      // returner "getchar()" i A0
-      printf("getchar()\n");
-      rscv_reg->rg[a0] = getchar();
-      break;
-    case 2:
-      // udfør "putchar(c)", hvor c tages fra A0
-      printf("putchar()\n");
-      putchar(rscv_reg->rg[a0]);
-      break;
-    case 3:
-    case 93:
-      // afslut simulationen
-      break;
-    default:
-      break;
-  }
-}
-
 
 /* 
  * Immidiate Encoding Variants helper functions 
@@ -57,6 +34,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg )
       {
         rscv_reg->PC = rscv_reg->PC + imm;
       }
+      rscv_reg->PC += 4;
       break;
     case 1:
       printf("BNE\n");
@@ -65,6 +43,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg )
         printf("IMM=%u\n", imm);
         rscv_reg->PC = rscv_reg->PC + imm;
       }
+      rscv_reg->PC += 4;
       break;
       // Branch less tha Signed
     case 4:
@@ -73,6 +52,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg )
       {
         rscv_reg->PC = rscv_reg->PC + imm;
       }
+      rscv_reg->PC += 4;
       break;
     case 5:
       // Branch Greater that or equal Signed
@@ -81,6 +61,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg )
       {
         rscv_reg->PC = rscv_reg->PC + imm;
       }
+      rscv_reg->PC += 4;
       break;
     case 6:
       // Branch less than unsigned
@@ -89,6 +70,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg )
       {
         rscv_reg->PC = rscv_reg->PC + imm;
       }
+      rscv_reg->PC += 4;
       break;
     case 7:
       // Branch greater than or equal unsigned
@@ -97,6 +79,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg )
       {
         rscv_reg->PC = rscv_reg->PC + imm;
       }
+      rscv_reg->PC += 4;
       break;
   };
 }
@@ -198,7 +181,7 @@ void type_S (uint32_t word, RiscvRegister_t* rscv_reg)
       // store word in memory 
       printf("SW\n");
       int32_t full_word = rscv_reg->rg[rs2];
-      printf("SW Adress == %u, IMM== %i, RS1==%i, RS2==%i \n",address, imm, rs1, rs2 );
+      printf("SW Adress == %0x, IMM== %i, RS1==%i, RS2==%i, R[RS1]==%lli \n",address, imm, rs1, rs2, rscv_reg->rg[rs1] );
       memory_wr_w(rscv_reg->mem, address, full_word);
       rscv_reg->PC += 4;
       break;
@@ -229,8 +212,10 @@ void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg)
   {
     case 0:
       printf("ADDI\n"); // I-type
-      rscv_reg->rg[rd] = rs1 + get_imm_I(word);
+      rscv_reg->rg[rd] = rscv_reg->rg[rs1] + get_imm_I(word);
       rscv_reg->PC += 4;
+      printf("R[RS1]==%lli\n", rscv_reg->rg[rs1]);
+      printf("R[RD]==%lli\n", rscv_reg->rg[rd]);
       break;
     case 2:
       // Set less than immediate signed
@@ -489,8 +474,8 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
 
   // Struct for risc-v register and instructions
   struct RiscvRegister rscv_reg;
+  memset(rscv_reg.rg, 0, 32);
   rscv_reg.PC = start_addr;
-
   rscv_reg.mem = memory_create();
 
   uint64_t inst_cnt = 0; // Instruction counter
@@ -500,8 +485,9 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
   uint32_t opcode;
   uint32_t rd;
   uint32_t rs1;
+  uint32_t rs2;
 
-  while (inst_cnt <= 500) {
+  while (inst_cnt <= 100) {
 
     // Read word (instruction set)
     word = memory_rd_w(mem, rscv_reg.PC);
@@ -509,7 +495,9 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     // Decode instruction set
     opcode = get_opcode(word);
     rs1 = get_rs1(word);
+    rs2 = get_rs2(word);
     rd = get_rd(word);
+    //rscv_reg.rg[0] = 0;
     
     // Increase instruction count
     inst_cnt++;
@@ -520,6 +508,8 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     printf("pc: %0llx\n", rscv_reg.PC);
     printf("rd: %u\n", rd);
     printf("rs1: %u\n", rs1);
+    printf("rs2: %u\n", rs2);
+    printf("R[0]==%lli\n", rscv_reg.rg[0]);
 
     // Pattern matching
     switch(opcode) {
@@ -537,14 +527,17 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
       case 111:
         rscv_reg.rg[rd] = rscv_reg.PC + 4;
         rscv_reg.PC = rscv_reg.PC + get_imm_J(word);
+        printf("imm: %i\n", get_imm_J(word));
         printf("JAL\n"); // J-type
-        goto jump;
+        break;
       case 103:
+        int64_t var = rscv_reg.rg[rs1];
         rscv_reg.rg[rd] = rscv_reg.PC + 4;
-        rscv_reg.PC = rscv_reg.rg[rs1] + get_imm_I(word);
+        rscv_reg.PC = var + get_imm_I(word);
+        printf("imm: %i\n", get_imm_I(word));
         printf("rg[1]: %0llx\n", rscv_reg.rg[1]);
         printf("JALR\n"); // I-type
-        goto jump;
+        break;
       case 99:  
         type_B(word, &rscv_reg);
         break;
@@ -563,25 +556,35 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
       case 19:
         type_I2(word, &rscv_reg);
         break;
-      // If li	a7,3. LI = ADDI
-      // then program is done and out c code should terminal
-      // it is an ecall
-      case 115:
+        
+      case ECALL:
         printf("ecall\n");
-        if (rscv_reg.rg[17] == TERMINATE_3 || rscv_reg.rg[17] == TERMINATE_93) {
-          // Terminate program
-          return inst_cnt;
+        int32_t ecall = rscv_reg.rg[a7];
+        printf("R[a7]==%lli\n", var);
+        switch(ecall) {
+          case 1:
+            // returner "getchar()" i A0
+            printf("getchar()\n");
+            rscv_reg.rg[a0] = getchar();
+            rscv_reg.PC += 4;
+            break;
+          case 2:
+            // udfør "putchar(c)", hvor c tages fra A0
+            printf("putchar()\n");
+            putchar(rscv_reg.rg[a0]);
+            rscv_reg.PC += 4;
+            break;
+          case 3:
+          case 93:
+            // afslut simulationen
+            return inst_cnt;
+          default:
+            break;
         }
-        ecall(&rscv_reg);
-        break;
     }
 
     // Increment PC
     // rscv_reg.PC += 4;
-
-    // JAL and JALR;
-    jump:
-
     printf("\n");
   }
   // finder_function(opcode);
