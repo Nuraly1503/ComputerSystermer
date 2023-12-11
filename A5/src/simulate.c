@@ -486,6 +486,9 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
   uint32_t rd;
   uint32_t rs1;
   uint32_t rs2;
+  int64_t rg_rs1;
+  int64_t rg_rs2;
+  int32_t ecall_val;
 
   while (inst_cnt <= 100) {
 
@@ -497,6 +500,9 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     rs1 = get_rs1(word);
     rs2 = get_rs2(word);
     rd = get_rd(word);
+    rg_rs1 = rscv_reg.rg[rs1];
+    rg_rs2 = rscv_reg.rg[rs2];
+    ecall_val = rscv_reg.rg[a7];
     //rscv_reg.rg[0] = 0;
     
     // Increase instruction count
@@ -508,7 +514,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     printf("pc: %0llx\n", rscv_reg.PC);
     printf("rd: %u\n", rd);
     printf("rs1: %u\n", rs1);
-    printf("rs2: %u\n", rs2);
+    //printf("rs2: %u\n", rs2);
     printf("R[0]==%lli\n", rscv_reg.rg[0]);
 
     // Pattern matching
@@ -531,9 +537,8 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
         printf("JAL\n"); // J-type
         break;
       case 103:
-        int64_t var = rscv_reg.rg[rs1];
         rscv_reg.rg[rd] = rscv_reg.PC + 4;
-        rscv_reg.PC = var + get_imm_I(word);
+        rscv_reg.PC = rg_rs1 + get_imm_I(word);
         printf("imm: %i\n", get_imm_I(word));
         printf("rg[1]: %0llx\n", rscv_reg.rg[1]);
         printf("JALR\n"); // I-type
@@ -559,9 +564,8 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
         
       case ECALL:
         printf("ecall\n");
-        int32_t ecall = rscv_reg.rg[a7];
-        printf("R[a7]==%lli\n", var);
-        switch(ecall) {
+        printf("R[a7]==%i\n", ecall_val);
+        switch(ecall_val) {
           case 1:
             // returner "getchar()" i A0
             printf("getchar()\n");
