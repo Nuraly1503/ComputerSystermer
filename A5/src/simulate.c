@@ -217,7 +217,7 @@ void type_R (uint32_t word, RiscvRegister_t* rscv_reg) {
   uint32_t funct7 = get_funct7(word);
 
   switch (funct3) {
-    case 0:
+    case 0: // ADD, SUB
       // printf("ADD/SUB\n");
       if (funct7 == 0) {
         rscv_reg->rg[rd] = rscv_reg->rg[rs1] + rscv_reg->rg[rs2];
@@ -228,13 +228,13 @@ void type_R (uint32_t word, RiscvRegister_t* rscv_reg) {
       }
       // printf("ADD rg[rd]: %lli\n", rscv_reg->rg[rd]);
       break;
-    case 1:
+    case 1: // SLL
       // printf("SLL\n");
       rscv_reg->rg[rd] = rscv_reg->rg[rs1] << rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       // printf("rg[rd]: %lli\n", rscv_reg->rg[rd]);
       break;
-    case 2:
+    case 2: // SLT
       // set less than if rs1 < rs2 else 0
       // printf("SLT\n");
       if ((int32_t) rscv_reg->rg[rs1] < (int32_t)rscv_reg->rg[rs2]) {
@@ -245,10 +245,10 @@ void type_R (uint32_t word, RiscvRegister_t* rscv_reg) {
         rscv_reg->PC += 4;
       }
       break;
-    case 3:
+    case 3: // SLTU
       // Set less unsigned cast to unsigned
       // printf("SLTU\n");
-      if (rscv_reg->rg[rs1] < rscv_reg->rg[rs2]) {
+      if ((uint32_t) rscv_reg->rg[rs1] < (uint32_t) rscv_reg->rg[rs2]) {
         rscv_reg->rg[rd] = 1;
         rscv_reg->PC += 4;
       } else {
@@ -257,13 +257,13 @@ void type_R (uint32_t word, RiscvRegister_t* rscv_reg) {
       }
       // printf("rg[rd]: %lli\n", rscv_reg->rg[rd]);
       break;
-    case 4:
+    case 4: // XOR
       // Exclusive or
       // printf("XOR\n");
       rscv_reg->rg[rd] = rscv_reg->rg[rs1]^rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
-    case 5:
+    case 5: // SRL, SRA
       // printf("SRL/SRA\n");
       if (funct7 == 0) {
         rscv_reg->rg[rd] = rscv_reg->rg[rs1] >> rscv_reg->rg[rs2];
@@ -273,12 +273,12 @@ void type_R (uint32_t word, RiscvRegister_t* rscv_reg) {
         rscv_reg->PC += 4;
       }
       break;
-    case 6:
+    case 6: // OR
       // printf("OR\n");
       rscv_reg->rg[rd] = rscv_reg->rg[rs1] | rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
-    case 7:
+    case 7: // AND
       // printf("AND\n");
       rscv_reg->rg[rd] = rscv_reg->rg[rs1] & rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
