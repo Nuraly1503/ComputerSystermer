@@ -301,7 +301,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg) {
   uint32_t funct3 = get_funct3(word);
 
   switch(funct3) {
-    case 0:
+    case 0: // BEQ
       // printf("BEQ\n");
       if (rscv_reg->rg[rs1] == rscv_reg->rg[rs2]) {
         rscv_reg->PC = rscv_reg->PC + imm;
@@ -309,7 +309,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg) {
         rscv_reg->PC += 4;
       }
       break;
-    case 1:
+    case 1: // BNE
       // printf("BNE\n");
       if (rscv_reg->rg[rs1] != rscv_reg->rg[rs2]) {
         // printf("IMM=%u\n", imm);
@@ -319,7 +319,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg) {
       }
       break;
       // Branch less tha Signed
-    case 4:
+    case 4: // BLT
       // printf("BLT\n");
       if ((int32_t)rscv_reg->rg[rs1] < (int32_t)rscv_reg->rg[rs2]) {
         rscv_reg->PC = rscv_reg->PC + imm;
@@ -327,7 +327,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg) {
         rscv_reg->PC += 4;
       }
       break;
-    case 5:
+    case 5: // BGE
       // Branch Greater that or equal Signed
       // printf("BGE\n");
       if ((int32_t)rscv_reg->rg[rs1] >= (int32_t)rscv_reg->rg[rs2]) {
@@ -336,19 +336,19 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg) {
         rscv_reg->PC += 4;
       }
       break;
-    case 6:
+    case 6: // BLTU
       // Branch less than unsigned
       // printf("BLTU\n");
-      if (rscv_reg->rg[rs1] < rscv_reg->rg[rs2]) {
+      if ((uint32_t) rscv_reg->rg[rs1] < (uint32_t) rscv_reg->rg[rs2]) {
         rscv_reg->PC = rscv_reg->PC + imm;
       } else {
         rscv_reg->PC += 4;
       }
       break;
-    case 7:
+    case 7: // BGEU
       // Branch greater than or equal unsigned
       // printf("BGEU\n");
-      if (rscv_reg->rg[rs1] >= rscv_reg->rg[rs2]) {
+      if ((uint32_t) rscv_reg->rg[rs1] >= (uint32_t) rscv_reg->rg[rs2]) {
         rscv_reg->PC = rscv_reg->PC + imm;
       } else {
         rscv_reg->PC += 4;
@@ -430,7 +430,7 @@ void type_S (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem) {
   uint32_t address = rscv_reg->rg[rs1] + imm;
 
   switch (funct3) {
-    case 0:
+    case 0: // SB
       // Store byte in memory
       // printf("SB\n");
       byte = rscv_reg->rg[rs2];
@@ -438,7 +438,7 @@ void type_S (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem) {
       memory_wr_b(mem, address, byte);
       rscv_reg->PC += 4;
       break;
-    case 1:
+    case 1: // SH
       // store halfword in memory 
       // printf("SH\n");
       halfword = rscv_reg->rg[rs2];
@@ -446,7 +446,7 @@ void type_S (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem) {
       memory_wr_h(mem, address, halfword);
       rscv_reg->PC += 4;
       break;
-    case 2:
+    case 2: // SW
       // store word in memory 
       // printf("SW\n");
       full_word = rscv_reg->rg[rs2];
