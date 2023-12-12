@@ -29,7 +29,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
   int64_t rg_rs2;
   int32_t ecall_val;
 
-  while (inst_cnt <= 100) {
+  while (inst_cnt <= 500) {
 
     // Read word (instruction set)
     word = memory_rd_w(mem, rscv_reg.PC);
@@ -104,13 +104,13 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
         }
         break;
       case TYPE_I:
-        type_I(word, &rscv_reg);
+        type_I(word, &rscv_reg, mem);
         break;
       case TYPE_I2:
         type_I2(word, &rscv_reg);
         break;
       case TYPE_S:
-        type_S(word, &rscv_reg);
+        type_S(word, &rscv_reg, mem);
         break;
       
       case ECALL:
@@ -366,7 +366,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg) {
 }
 
 // 0000011
-void type_I (uint32_t word, RiscvRegister_t* rscv_reg) {
+void type_I (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem) {
   uint32_t rs1;
   // uint32_t rs2;
   uint32_t rd;
@@ -385,31 +385,31 @@ void type_I (uint32_t word, RiscvRegister_t* rscv_reg) {
     case 0:
       // Load Byte
       printf("LB\n");
-      int8_t byte = memory_rd_b(rscv_reg->mem, address);
+      uint8_t byte = memory_rd_b(mem, address);
       rscv_reg->rg[rd] = (int32_t)byte;
       rscv_reg->PC += 4;
       break;
     case 1:
       printf("LH\n");
-      int16_t halfword = memory_rd_b(rscv_reg->mem, address);
+      uint16_t halfword = memory_rd_h(mem, address);
       rscv_reg->rg[rd] = (int32_t)halfword;
       rscv_reg->PC += 4;
       break;
     case 2:
       printf("LW\n");
-      int32_t full_word = memory_rd_b(rscv_reg->mem, address);
-      rscv_reg->rg[rd] = (int32_t)full_word;
+      uint32_t full_word = memory_rd_w(mem, address);
+      rscv_reg->rg[rd] = (int32_t) full_word;
       rscv_reg->PC += 4;
       break;
     case 4:
       printf("LBU\n");
-      uint8_t u_byte = memory_rd_b(rscv_reg->mem, address);
+      uint8_t u_byte = memory_rd_b(mem, address);
       rscv_reg->rg[rd] = (uint32_t)u_byte;
       rscv_reg->PC += 4;
       break;
     case 5:
       printf("LHU\n");
-      uint16_t u_halfword = memory_rd_b(rscv_reg->mem, address);
+      uint16_t u_halfword = memory_rd_h(mem, address);
       rscv_reg->rg[rd] = (uint32_t)u_halfword;
       rscv_reg->PC += 4;
       break;
@@ -417,7 +417,7 @@ void type_I (uint32_t word, RiscvRegister_t* rscv_reg) {
 }
 
 //0100011
-void type_S (uint32_t word, RiscvRegister_t* rscv_reg) {
+void type_S (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem) {
   uint32_t funct3;
   uint32_t rs1;
   uint32_t rs2;
@@ -430,7 +430,7 @@ void type_S (uint32_t word, RiscvRegister_t* rscv_reg) {
   imm = get_imm_S(word);
 
   // struct memory *mem = memory_create();
-  int32_t address = rscv_reg->rg[rs1] + imm;
+  uint32_t address = rscv_reg->rg[rs1] + imm;
 
   funct3 = get_funct3(word);
 
@@ -438,25 +438,25 @@ void type_S (uint32_t word, RiscvRegister_t* rscv_reg) {
     case 0:
       // Store byte in memory
       printf("SB\n");
-      int8_t byte = rscv_reg->rg[rs2];
+      uint8_t byte = rscv_reg->rg[rs2];
       printf("SB Adress == %u\n",address );
-      memory_wr_b(rscv_reg->mem, address, byte);
+      memory_wr_b(mem, address, byte);
       rscv_reg->PC += 4;
       break;
     case 1:
       // store halfword in memory 
       printf("SH\n");
-      int16_t halfword = rscv_reg->rg[rs2];
+      uint16_t halfword = rscv_reg->rg[rs2];
       printf("SH Adress == %u\n",address );
-      memory_wr_h(rscv_reg->mem, address, halfword);
+      memory_wr_h(mem, address, halfword);
       rscv_reg->PC += 4;
       break;
     case 2:
       // store word in memory 
       printf("SW\n");
-      int32_t full_word = rscv_reg->rg[rs2];
+      uint32_t full_word = rscv_reg->rg[rs2];
       printf("SW Adress == %0x, IMM== %i, RS1==%i, RS2==%i, R[RS1]==%lli \n",address, imm, rs1, rs2, rscv_reg->rg[rs1] );
-      memory_wr_w(rscv_reg->mem, address, full_word);
+      memory_wr_w(mem, address, full_word);
       rscv_reg->PC += 4;
       break;
   }

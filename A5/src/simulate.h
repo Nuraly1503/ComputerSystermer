@@ -39,8 +39,8 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
 void helper_extension (uint32_t word, RiscvRegister_t* rscv_reg);
 void type_R (uint32_t word, RiscvRegister_t* rscv_reg);
 void type_B (uint32_t word, RiscvRegister_t* rscv_reg);
-void type_I (uint32_t word, RiscvRegister_t* rscv_reg);
-void type_S (uint32_t word, RiscvRegister_t* rscv_reg);
+void type_I (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem);
+void type_S (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem);
 void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg);
 
 #endif
