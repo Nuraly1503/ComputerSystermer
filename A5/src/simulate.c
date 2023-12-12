@@ -490,7 +490,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
   int64_t rg_rs2;
   int32_t ecall_val;
 
-  while (inst_cnt <= 100) {
+  while (inst_cnt <= 500) {
 
     // Read word (instruction set)
     word = memory_rd_w(mem, rscv_reg.PC);
@@ -503,7 +503,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     rg_rs1 = rscv_reg.rg[rs1];
     rg_rs2 = rscv_reg.rg[rs2];
     ecall_val = rscv_reg.rg[a7];
-    //rscv_reg.rg[0] = 0;
+    rscv_reg.rg[0] = 0; // x0 should always zero
     
     // Increase instruction count
     inst_cnt++;
@@ -514,7 +514,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     printf("pc: %0llx\n", rscv_reg.PC);
     printf("rd: %u\n", rd);
     printf("rs1: %u\n", rs1);
-    //printf("rs2: %u\n", rs2);
+    printf("rs2: %u\n", rs2);
     printf("R[0]==%lli\n", rscv_reg.rg[0]);
 
     // Pattern matching
