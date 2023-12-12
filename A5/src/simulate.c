@@ -154,51 +154,52 @@ void helper_extension (uint32_t word, RiscvRegister_t* rscv_reg) {
   uint32_t funct3 = get_funct3(word);
 
   switch (funct3) {
-    case 0:
+    case 0: // MUL
       // printf("MUL\n");
       // Multiply two signed numbers
       rscv_reg-> rg[rd] = (int32_t)rscv_reg->rg[rs1] * (int32_t)rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
-    case 1:
+    case 1: // MULH
+      // OBS!
       // printf("MULH\n");
       rscv_reg-> rg[rd] = (int32_t) rscv_reg->rg[rs1] * (int32_t)rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
-    case 2:
+    case 2: // MULHSU
       // One signed with one unsigned
       // printf("MULHSU\n");
       rscv_reg-> rg[rd] = (int32_t) rscv_reg->rg[rs1] * rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
-    case 3:
+    case 3: // MULHU
       // Multiply two unsigned numbers
       // printf("MULHU\n");
       rscv_reg-> rg[rd] = rscv_reg->rg[rs1] * rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
-    case 4:
+    case 4: // DIV 
       // Divide two signed integers
       // printf("DIV\n");
       rscv_reg-> rg[rd] = (int32_t) rscv_reg->rg[rs1] / (int32_t)rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
-    case 5:
+    case 5: //DIVU
       // Divide two unsigned integers
       // printf("DIVU\n");
-      rscv_reg-> rg[rd] = rscv_reg->rg[rs1] / rscv_reg->rg[rs2];
+      rscv_reg-> rg[rd] = (uint32_t) rscv_reg->rg[rs1] / (uint32_t) rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
-    case 6:
+    case 6: // REM
       // Modulo of two signed integers
       // printf("REM\n");
       rscv_reg-> rg[rd] = (int32_t) rscv_reg->rg[rs1] % (int32_t)rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
-    case 7:
+    case 7: // REMU
       // Modulo of two unsigned integers
       // printf("REMU\n");
-      rscv_reg-> rg[rd] = rscv_reg->rg[rs1] % rscv_reg->rg[rs2];
+      rscv_reg-> rg[rd] = (uint32_t) rscv_reg->rg[rs1] % (uint32_t) rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
   }
