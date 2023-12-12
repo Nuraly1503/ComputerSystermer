@@ -10,6 +10,11 @@
 
 // Opcodes
 #define ECALL         115
+#define TYPE_B        99
+#define TYPE_R        51
+#define TYPE_I        3
+#define TYPE_I2       19
+#define TYPE_S        35
 
 // Register
 #define REGISTER_LEN  32
@@ -31,6 +36,11 @@ typedef struct RiscvRegister {
 long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE *log_file);
 
 // Helper functions
-
+void helper_extension (uint32_t word, RiscvRegister_t* rscv_reg);
+void type_R (uint32_t word, RiscvRegister_t* rscv_reg);
+void type_B (uint32_t word, RiscvRegister_t* rscv_reg);
+void type_I (uint32_t word, RiscvRegister_t* rscv_reg);
+void type_S (uint32_t word, RiscvRegister_t* rscv_reg);
+void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg);
 
 #endif
