@@ -29,8 +29,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
   int64_t rg_rs2;
   int32_t ecall_val;
 
-  while (inst_cnt <= 500) {
-
+  while (1) {
     // Read word (instruction set)
     word = memory_rd_w(mem, rscv_reg.PC);
 
@@ -50,39 +49,39 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     inst_cnt++;
 
     // Debug
-    printf("word: %u\n", word);
-    printf("opcode: %u\n", opcode);
-    printf("pc: %0llx\n", rscv_reg.PC);
-    printf("rd: %u\n", rd);
-    printf("rs1: %u\n", rs1);
-    printf("rs2: %u\n", rs2);
-    printf("R[0]==%lli\n", rscv_reg.rg[0]);
+    // printf("word: %u\n", word);
+    // printf("opcode: %u\n", opcode);
+    // printf("pc: %0llx\n", rscv_reg.PC);
+    // printf("rd: %u\n", rd);
+    // printf("rs1: %u\n", rs1);
+    // printf("rs2: %u\n", rs2);
+    // printf("R[0]==%lli\n", rscv_reg.rg[0]);
 
     // Pattern matching
     switch(opcode) {
       case 55:
         rscv_reg.rg[rd] = get_imm_U(word);
         rscv_reg.PC += 4;
-        printf("LUI\n"); // U-type
+        // printf("LUI\n"); // U-type
         break;
       case 23:
         rscv_reg.rg[rd] = rscv_reg.PC + get_imm_U(word);
         rscv_reg.PC += 4;
-        printf("imm-u: %i\n", get_imm_U(word));
-        printf("AUIPC\n"); // U-type
+        // printf("imm-u: %i\n", get_imm_U(word));
+        // printf("AUIPC\n"); // U-type
         break;
       case 111:
         rscv_reg.rg[rd] = rscv_reg.PC + 4;
         rscv_reg.PC = rscv_reg.PC + get_imm_J(word);
-        printf("imm: %i\n", get_imm_J(word));
-        printf("JAL\n"); // J-type
+        // printf("imm: %i\n", get_imm_J(word));
+        // printf("JAL\n"); // J-type
         break;
       case 103:
         rscv_reg.rg[rd] = rscv_reg.PC + 4;
         rscv_reg.PC = rg_rs1 + get_imm_I(word);
-        printf("imm: %i\n", get_imm_I(word));
-        printf("rg[1]: %0llx\n", rscv_reg.rg[1]);
-        printf("JALR\n"); // I-type
+        // printf("imm: %i\n", get_imm_I(word));
+        // printf("rg[1]: %0llx\n", rscv_reg.rg[1]);
+        // printf("JALR\n"); // I-type
         break;
       case TYPE_B:  
         type_B(word, &rscv_reg);
@@ -114,18 +113,18 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
         break;
       
       case ECALL:
-        printf("ecall\n");
-        printf("R[a7]==%i\n", ecall_val);
+        // printf("ecall\n");
+        // printf("R[a7]==%i\n", ecall_val);
         switch(ecall_val) {
           case 1:
             // returner "getchar()" i A0
-            printf("getchar()\n");
+            // printf("getchar()\n");
             rscv_reg.rg[a0] = getchar();
             rscv_reg.PC += 4;
             break;
           case 2:
             // udfør "putchar(c)", hvor c tages fra A0
-            printf("putchar()\n");
+            // printf("putchar()\n");
             putchar(rscv_reg.rg[a0]);
             rscv_reg.PC += 4;
             break;
@@ -138,7 +137,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
         }
     }
 
-    printf("\n");
+    // printf("\n");
   }
 
   return inst_cnt;
@@ -163,49 +162,49 @@ void helper_extension (uint32_t word, RiscvRegister_t* rscv_reg) {
 
   switch (funct3) {
     case 0:
-      printf("MUL\n");
+      // printf("MUL\n");
       // Multiply two signed numbers
       rscv_reg-> rg[rd] = (int32_t)rscv_reg->rg[rs1] * (int32_t)rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
     case 1:
-      printf("MULH\n");
+      // printf("MULH\n");
       rscv_reg-> rg[rd] = (int32_t) rscv_reg->rg[rs1] * (int32_t)rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
     case 2:
       // One signed with one unsigned
-      printf("MULHSU\n");
+      // printf("MULHSU\n");
       rscv_reg-> rg[rd] = (int32_t) rscv_reg->rg[rs1] * rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
     case 3:
       // Multiply two unsigned numbers
-      printf("MULHU\n");
+      // printf("MULHU\n");
       rscv_reg-> rg[rd] = rscv_reg->rg[rs1] * rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
     case 4:
       // Divide two signed integers
-      printf("DIV\n");
+      // printf("DIV\n");
       rscv_reg-> rg[rd] = (int32_t) rscv_reg->rg[rs1] / (int32_t)rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
     case 5:
       // Divide two unsigned integers
-      printf("DIVU\n");
+      // printf("DIVU\n");
       rscv_reg-> rg[rd] = rscv_reg->rg[rs1] / rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
     case 6:
       // Modulo of two signed integers
-      printf("REM\n");
+      // printf("REM\n");
       rscv_reg-> rg[rd] = (int32_t) rscv_reg->rg[rs1] % (int32_t)rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
     case 7:
       // Modulo of two unsigned integers
-      printf("REMU\n");
+      // printf("REMU\n");
       rscv_reg-> rg[rd] = rscv_reg->rg[rs1] % rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
@@ -226,7 +225,7 @@ void type_R (uint32_t word, RiscvRegister_t* rscv_reg) {
 
   switch (funct3) {
     case 0:
-      printf("ADD/SUB\n");
+      // printf("ADD/SUB\n");
       if (funct7 == 0) {
         rscv_reg->rg[rd] = rscv_reg->rg[rs1] + rscv_reg->rg[rs2];
         rscv_reg->PC += 4;
@@ -234,17 +233,17 @@ void type_R (uint32_t word, RiscvRegister_t* rscv_reg) {
         rscv_reg->rg[rd] = rscv_reg->rg[rs1] - rscv_reg->rg[rs2];
         rscv_reg->PC += 4;
       }
-      printf("ADD rg[rd]: %lli\n", rscv_reg->rg[rd]);
+      // printf("ADD rg[rd]: %lli\n", rscv_reg->rg[rd]);
       break;
     case 1:
-      printf("SLL\n");
+      // printf("SLL\n");
       rscv_reg->rg[rd] = rscv_reg->rg[rs1] << rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
-      printf("rg[rd]: %lli\n", rscv_reg->rg[rd]);
+      // printf("rg[rd]: %lli\n", rscv_reg->rg[rd]);
       break;
     case 2:
       // set less than if rs1 < rs2 else 0
-      printf("SLT\n");
+      // printf("SLT\n");
       if ((int32_t) rscv_reg->rg[rs1] < (int32_t)rscv_reg->rg[rs2]) {
         rscv_reg->rg[rd] = 1;
         rscv_reg->PC += 4;
@@ -255,7 +254,7 @@ void type_R (uint32_t word, RiscvRegister_t* rscv_reg) {
       break;
     case 3:
       // Set less unsigned cast to unsigned
-      printf("SLTU\n");
+      // printf("SLTU\n");
       if (rscv_reg->rg[rs1] < rscv_reg->rg[rs2]) {
         rscv_reg->rg[rd] = 1;
         rscv_reg->PC += 4;
@@ -263,16 +262,16 @@ void type_R (uint32_t word, RiscvRegister_t* rscv_reg) {
         rscv_reg->rg[rd] = 0;
         rscv_reg->PC += 4;
       }
-      printf("rg[rd]: %lli\n", rscv_reg->rg[rd]);
+      // printf("rg[rd]: %lli\n", rscv_reg->rg[rd]);
       break;
     case 4:
       // Exclusive or
-      printf("XOR\n");
+      // printf("XOR\n");
       rscv_reg->rg[rd] = rscv_reg->rg[rs1]^rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
     case 5:
-      printf("SRL/SRA\n");
+      // printf("SRL/SRA\n");
       if (funct7 == 0) {
         rscv_reg->rg[rd] = rscv_reg->rg[rs1] >> rscv_reg->rg[rs2];
         rscv_reg->PC += 4;
@@ -282,12 +281,12 @@ void type_R (uint32_t word, RiscvRegister_t* rscv_reg) {
       }
       break;
     case 6:
-      printf("OR\n");
+      // printf("OR\n");
       rscv_reg->rg[rd] = rscv_reg->rg[rs1] | rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
     case 7:
-      printf("AND\n");
+      // printf("AND\n");
       rscv_reg->rg[rd] = rscv_reg->rg[rs1] & rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
       break;
@@ -310,7 +309,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg) {
 
   switch(funct3) {
     case 0:
-      printf("BEQ\n");
+      // printf("BEQ\n");
       if (rscv_reg->rg[rs1] == rscv_reg->rg[rs2]) {
         rscv_reg->PC = rscv_reg->PC + imm;
       } else {
@@ -318,9 +317,9 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg) {
       }
       break;
     case 1:
-      printf("BNE\n");
+      // printf("BNE\n");
       if (rscv_reg->rg[rs1] != rscv_reg->rg[rs2]) {
-        printf("IMM=%u\n", imm);
+        // printf("IMM=%u\n", imm);
         rscv_reg->PC = rscv_reg->PC + imm;
       } else {
         rscv_reg->PC += 4;
@@ -328,7 +327,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg) {
       break;
       // Branch less tha Signed
     case 4:
-      printf("BLT\n");
+      // printf("BLT\n");
       if ((int32_t)rscv_reg->rg[rs1] < (int32_t)rscv_reg->rg[rs2]) {
         rscv_reg->PC = rscv_reg->PC + imm;
       } else {
@@ -337,7 +336,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg) {
       break;
     case 5:
       // Branch Greater that or equal Signed
-      printf("BGE\n");
+      // printf("BGE\n");
       if ((int32_t)rscv_reg->rg[rs1] >= (int32_t)rscv_reg->rg[rs2]) {
         rscv_reg->PC = rscv_reg->PC + imm;
       } else {
@@ -346,7 +345,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg) {
       break;
     case 6:
       // Branch less than unsigned
-      printf("BLTU\n");
+      // printf("BLTU\n");
       if (rscv_reg->rg[rs1] < rscv_reg->rg[rs2]) {
         rscv_reg->PC = rscv_reg->PC + imm;
       } else {
@@ -355,7 +354,7 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg) {
       break;
     case 7:
       // Branch greater than or equal unsigned
-      printf("BGEU\n");
+      // printf("BGEU\n");
       if (rscv_reg->rg[rs1] >= rscv_reg->rg[rs2]) {
         rscv_reg->PC = rscv_reg->PC + imm;
       } else {
@@ -384,31 +383,31 @@ void type_I (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem) {
   switch (funct3) {
     case 0:
       // Load Byte
-      printf("LB\n");
+      // printf("LB\n");
       uint8_t byte = memory_rd_b(mem, address);
       rscv_reg->rg[rd] = (int32_t)byte;
       rscv_reg->PC += 4;
       break;
     case 1:
-      printf("LH\n");
+      // printf("LH\n");
       uint16_t halfword = memory_rd_h(mem, address);
       rscv_reg->rg[rd] = (int32_t)halfword;
       rscv_reg->PC += 4;
       break;
     case 2:
-      printf("LW\n");
+      // printf("LW\n");
       uint32_t full_word = memory_rd_w(mem, address);
       rscv_reg->rg[rd] = (int32_t) full_word;
       rscv_reg->PC += 4;
       break;
     case 4:
-      printf("LBU\n");
+      // printf("LBU\n");
       uint8_t u_byte = memory_rd_b(mem, address);
       rscv_reg->rg[rd] = (uint32_t)u_byte;
       rscv_reg->PC += 4;
       break;
     case 5:
-      printf("LHU\n");
+      // printf("LHU\n");
       uint16_t u_halfword = memory_rd_h(mem, address);
       rscv_reg->rg[rd] = (uint32_t)u_halfword;
       rscv_reg->PC += 4;
@@ -437,25 +436,25 @@ void type_S (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem) {
   switch (funct3) {
     case 0:
       // Store byte in memory
-      printf("SB\n");
+      // printf("SB\n");
       uint8_t byte = rscv_reg->rg[rs2];
-      printf("SB Adress == %u\n",address );
+      // printf("SB Adress == %u\n",address );
       memory_wr_b(mem, address, byte);
       rscv_reg->PC += 4;
       break;
     case 1:
       // store halfword in memory 
-      printf("SH\n");
+      // printf("SH\n");
       uint16_t halfword = rscv_reg->rg[rs2];
-      printf("SH Adress == %u\n",address );
+      // printf("SH Adress == %u\n",address );
       memory_wr_h(mem, address, halfword);
       rscv_reg->PC += 4;
       break;
     case 2:
       // store word in memory 
-      printf("SW\n");
+      // printf("SW\n");
       uint32_t full_word = rscv_reg->rg[rs2];
-      printf("SW Adress == %0x, IMM== %i, RS1==%i, RS2==%i, R[RS1]==%lli \n",address, imm, rs1, rs2, rscv_reg->rg[rs1] );
+      // printf("SW Adress == %0x, IMM== %i, RS1==%i, RS2==%i, R[RS1]==%lli \n",address, imm, rs1, rs2, rscv_reg->rg[rs1] );
       memory_wr_w(mem, address, full_word);
       rscv_reg->PC += 4;
       break;
@@ -477,21 +476,21 @@ void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg) {
   imm = get_imm_I(word);
 
   // Debug
-  printf("rs1: %u\n", rs1);
-  printf("imm_I: %i\n", imm);
-  printf("rd: %u\n", rd);
+  // printf("rs1: %u\n", rs1);
+  // printf("imm_I: %i\n", imm);
+  // printf("rd: %u\n", rd);
 
   switch (funct3) {
     case 0:
-      printf("ADDI\n"); // I-type
+      // printf("ADDI\n"); // I-type
       rscv_reg->rg[rd] = rscv_reg->rg[rs1] + get_imm_I(word);
       rscv_reg->PC += 4;
-      printf("R[RS1]==%lli\n", rscv_reg->rg[rs1]);
-      printf("R[RD]==%lli\n", rscv_reg->rg[rd]);
+      // printf("R[RS1]==%lli\n", rscv_reg->rg[rs1]);
+      // printf("R[RD]==%lli\n", rscv_reg->rg[rd]);
       break;
     case 2:
       // Set less than immediate signed
-      printf("SLTI\n");
+      // printf("SLTI\n");
       if (rscv_reg->rg[rs1] < imm) {
         rscv_reg->rg[rd] = 1;
         rscv_reg->PC += 4;
@@ -502,7 +501,7 @@ void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg) {
       break;
     case 3:
       // Set less than immediate unsigned
-      printf("SLTIU\n");
+      // printf("SLTIU\n");
       if (rscv_reg->rg[rs1] < imm) {
         rscv_reg->rg[rd] = 1;
         rscv_reg->PC += 4;
@@ -513,17 +512,17 @@ void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg) {
       break;
     case 4:
       // Exclusive or immediate
-      printf("XORI\n");
+      // printf("XORI\n");
       rscv_reg->rg[rd] = rscv_reg->rg[rs1] ^ imm;
       rscv_reg->PC += 4;
       break;
     case 6:
-      printf("ORI\n"); // I-type
+      // printf("ORI\n"); // I-type
       rscv_reg->rg[rd] = get_imm_I(word) | rs1;
       rscv_reg->PC += 4;
       break;
     case 7:
-      printf("ANDI\n");
+      // printf("ANDI\n");
       rscv_reg->rg[rd] = rscv_reg->rg[rs1] & imm;
       rscv_reg->PC += 4;
       break;
@@ -531,18 +530,18 @@ void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg) {
     // Next ones are different types with the shamt
     case 1:
       // Shift left immidiate
-      printf("SLLI\n");
+      // printf("SLLI\n");
       rscv_reg->rg[rd] = rscv_reg->rg[rs1] << imm;
       rscv_reg->PC += 4;
       break;
     case 5:
-      printf("SRLI/SRAI\n");
+      // printf("SRLI/SRAI\n");
       if (funct7 == 0) {
-        printf("SRLI\n");
+        // printf("SRLI\n");
         rscv_reg->rg[rd] = rscv_reg->rg[rs1] >> imm;
         rscv_reg->PC += 4;
       } else {
-        printf("SRAI\n");
+        // printf("SRAI\n");
         rscv_reg->rg[rd] = (int32_t)rscv_reg->rg[rs1] >> imm;
         rscv_reg->PC += 4;
       }
