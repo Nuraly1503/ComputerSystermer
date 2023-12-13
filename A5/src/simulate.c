@@ -29,6 +29,9 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     // Read word (instruction set)
     word = memory_rd_w(mem, rscv_reg.PC);
 
+    // Write to log
+    // fprintf(log_file, assembly_get(as, rscv_reg.PC));
+
     // Decode instruction set
     opcode = get_opcode(word);
     rs1 = get_rs1(word);
