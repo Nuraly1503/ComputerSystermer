@@ -27,7 +27,7 @@
 
 // RISC-V Register
 typedef struct RiscvRegister {
-  int64_t rg[REGISTER_LEN];  // 32 risc-v registers (x0-x31)
+  int32_t rg[REGISTER_LEN];  // 32 risc-v registers (x0-x31)
   int64_t PC;  // Program counter: address of the next instruction
 } RiscvRegister_t;
 
