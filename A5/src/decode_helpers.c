@@ -69,8 +69,8 @@ int32_t get_imm_I(uint32_t word) {
 int32_t get_imm_S(uint32_t word) {
   // imm[11:5|4:0] = inst[31:25|11:7]
   int32_t imm_s;
-  imm_s = ((int32_t) (word & 0xfe000000)) >> (INSTR_LEN - OPCODE_LEN - RD_LEN)
-    | ((word >> OPCODE_LEN) & 0x1f);
+  imm_s = ((int32_t) (word & 0xfe000000) >> 20) //imm[11:5] = inst[31:25]
+    | ((word >> 7) & 0x1f); //imm[4:0] = inst[11:7]
   return imm_s;
 }
 

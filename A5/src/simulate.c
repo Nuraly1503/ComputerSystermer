@@ -25,7 +25,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
   int32_t rg_rs1;
   int32_t ecall_val;
 
-  while (1) {
+  while (inst_cnt < 100) {
     // Read word (instruction set)
     word = memory_rd_w(mem, rscv_reg.PC);
 
@@ -44,37 +44,35 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     // Debug
     // printf("word: %u\n", word);
     // printf("opcode: %u\n", opcode);
-    // printf("pc: %0llx\n", rscv_reg.PC);
+    // printf("pc: %0x\n", rscv_reg.PC);
     // printf("rd: %u\n", rd);
     // printf("rs1: %u\n", rs1);
-    // printf("rs2: %u\n", rs2);
-    // printf("R[0]==%i\n", rscv_reg.rg[0]);
+    // printf("R[0]==%i, R[2]==%0x\n", rscv_reg.rg[0], rscv_reg.rg[2]);
+
 
     // Pattern matching
     switch(opcode) {
       case 55:
+        // printf("LUI\n"); // U-type
         rscv_reg.rg[rd] = get_imm_U(word);
         rscv_reg.PC += 4;
-        // printf("LUI\n"); // U-type
         break;
       case 23:
+        // printf("AUIPC\n"); // U-type
         rscv_reg.rg[rd] = rscv_reg.PC + get_imm_U(word);
         rscv_reg.PC += 4;
-        // printf("imm-u: %i\n", get_imm_U(word));
-        // printf("AUIPC\n"); // U-type
         break;
       case 111:
+        // printf("JAL\n"); // J-type
         rscv_reg.rg[rd] = rscv_reg.PC + 4;
         rscv_reg.PC = rscv_reg.PC + get_imm_J(word);
-        // printf("imm: %i\n", get_imm_J(word));
-        // printf("JAL\n"); // J-type
         break;
       case 103:
+        // printf("JALR\n"); // I-type
         rscv_reg.rg[rd] = rscv_reg.PC + 4;
         rscv_reg.PC = rg_rs1 + get_imm_I(word);
         // printf("imm: %i\n", get_imm_I(word));
         // printf("rg[1]: %0x\n", rscv_reg.rg[1]);
-        // printf("JALR\n"); // I-type
         break;
       case TYPE_B:  
         type_B(word, &rscv_reg);
