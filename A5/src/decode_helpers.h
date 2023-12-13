@@ -21,6 +21,7 @@ uint32_t get_funct3(uint32_t word);
 uint32_t get_rs1(uint32_t word);
 uint32_t get_rs2(uint32_t word);
 uint32_t get_funct7(uint32_t word);
+uint32_t get_shamt(uint32_t word);
 
 // Immidiates helper functions
 int32_t get_imm_I(uint32_t word);
