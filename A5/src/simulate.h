@@ -22,13 +22,15 @@
 #define a7            17
 
 // Ecall
+#define GETCHAR       1
+#define PUTCHAR       2
 #define TERMINATE_3   3 
 #define TERMINATE_93  93
 
 // RISC-V Register
 typedef struct RiscvRegister {
   int32_t rg[REGISTER_LEN];  // 32 risc-v registers (x0-x31)
-  int64_t PC;  // Program counter: address of the next instruction
+  int32_t PC;  // Program counter: address of the next instruction
 } RiscvRegister_t;
 
 // Simuler RISC-V program i givet lager og fra given start adresse
