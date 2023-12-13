@@ -25,7 +25,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
   int32_t rg_rs1;
   int32_t ecall_val;
 
-  while (inst_cnt < 100) {
+  while (1) {
     // Read word (instruction set)
     word = memory_rd_w(mem, rscv_reg.PC);
 
@@ -397,6 +397,7 @@ void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg) {
   uint32_t rd = get_rd(word);
   uint32_t rs1 = get_rs1(word);
   int32_t imm = get_imm_I(word);
+  int32_t shamt = get_shamt(word);
 
   // Debug
   // printf("rs1: %u\n", rs1);
@@ -454,18 +455,18 @@ void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg) {
     case 1: // SLLI
       // Shift left immidiate
       // printf("SLLI\n");
-      rscv_reg->rg[rd] = rscv_reg->rg[rs1] << imm;
+      rscv_reg->rg[rd] = rscv_reg->rg[rs1] << shamt;
       rscv_reg->PC += 4;
       break;
     case 5: // SRLI, SRAI
       // printf("SRLI/SRAI\n");
       if (funct7 == 0) {
         // printf("SRLI\n");
-        rscv_reg->rg[rd] = rscv_reg->rg[rs1] >> imm;
+        rscv_reg->rg[rd] = rscv_reg->rg[rs1] >> shamt;
         rscv_reg->PC += 4;
       } else {
         // printf("SRAI\n");
-        rscv_reg->rg[rd] = (int32_t)rscv_reg->rg[rs1] >> imm;
+        rscv_reg->rg[rd] = (int32_t)rscv_reg->rg[rs1] >> shamt;
         rscv_reg->PC += 4;
       }
       break;

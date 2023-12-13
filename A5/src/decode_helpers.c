@@ -54,6 +54,13 @@ uint32_t get_funct7(uint32_t word) {
   return funct7;
 }
 
+uint32_t get_shamt(uint32_t word) {
+  // shamt[4:0] = inst[24:20]
+  uint32_t shamt;
+  shamt = (word & 0x01f00000) >> 20;
+  return shamt;
+}
+
 
 
 // Immidiates helper functions
