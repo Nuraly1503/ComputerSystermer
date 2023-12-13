@@ -22,7 +22,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
   uint32_t funct7;
   uint32_t rd;
   uint32_t rs1;
-  int64_t rg_rs1;
+  int32_t rg_rs1;
   int32_t ecall_val;
 
   while (1) {
@@ -48,7 +48,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     // printf("rd: %u\n", rd);
     // printf("rs1: %u\n", rs1);
     // printf("rs2: %u\n", rs2);
-    // printf("R[0]==%lli\n", rscv_reg.rg[0]);
+    // printf("R[0]==%i\n", rscv_reg.rg[0]);
 
     // Pattern matching
     switch(opcode) {
@@ -73,7 +73,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
         rscv_reg.rg[rd] = rscv_reg.PC + 4;
         rscv_reg.PC = rg_rs1 + get_imm_I(word);
         // printf("imm: %i\n", get_imm_I(word));
-        // printf("rg[1]: %0llx\n", rscv_reg.rg[1]);
+        // printf("rg[1]: %0x\n", rscv_reg.rg[1]);
         // printf("JALR\n"); // I-type
         break;
       case TYPE_B:  
@@ -109,20 +109,20 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
         // printf("ecall\n");
         // printf("R[a7]==%i\n", ecall_val);
         switch(ecall_val) {
-          case 1:
+          case GETCHAR:
             // returner "getchar()" i A0
             // printf("getchar()\n");
             rscv_reg.rg[a0] = getchar();
             rscv_reg.PC += 4;
             break;
-          case 2:
+          case PUTCHAR:
             // udfør "putchar(c)", hvor c tages fra A0
             // printf("putchar()\n");
             putchar(rscv_reg.rg[a0]);
             rscv_reg.PC += 4;
             break;
-          case 3:
-          case 93:
+          case TERMINATE_3:
+          case TERMINATE_93:
             // afslut simulationen
             return inst_cnt;
           default:
@@ -144,13 +144,9 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
 // Mash together type_R
 //0110011
 void helper_extension (uint32_t word, RiscvRegister_t* rscv_reg) {
-  uint32_t rs1;
-  uint32_t rs2;
-  uint32_t rd;
-
-  rs1 = get_rs1(word);
-  rs2 = get_rs2(word);
-  rd = get_rd(word);
+  uint32_t rs1 = get_rs1(word);
+  uint32_t rs2 = get_rs2(word);
+  uint32_t rd = get_rd(word);
   uint32_t funct3 = get_funct3(word);
 
   switch (funct3) {
@@ -162,19 +158,19 @@ void helper_extension (uint32_t word, RiscvRegister_t* rscv_reg) {
       break;
     case 1: // MULH
       // printf("MULH\n");
-      rscv_reg-> rg[rd] = (int32_t) (rscv_reg->rg[rs1] >> 32) * (int32_t) (rscv_reg->rg[rs2] >> 32);
+      rscv_reg-> rg[rd] = ((int64_t) rscv_reg->rg[rs1] * (int64_t) rscv_reg->rg[rs2]) >> 32;
       rscv_reg->PC += 4;
       break;
     case 2: // MULHSU
       // One signed with one unsigned
       // printf("MULHSU\n");
-      rscv_reg-> rg[rd] = (int32_t) (rscv_reg->rg[rs1] >> 32) * (uint32_t) (rscv_reg->rg[rs2] >> 32);
+      rscv_reg-> rg[rd] = ((int64_t) rscv_reg->rg[rs1] * (uint64_t) rscv_reg->rg[rs2]) >> 32;
       rscv_reg->PC += 4;
       break;
     case 3: // MULHU
       // Multiply two unsigned numbers
       // printf("MULHU\n");
-      rscv_reg-> rg[rd] = (uint32_t) (rscv_reg->rg[rs1] >> 32) * (uint32_t) (rscv_reg->rg[rs2] >> 32);
+      rscv_reg-> rg[rd] = ((uint64_t) rscv_reg->rg[rs1] * (uint64_t) rscv_reg->rg[rs2]) >> 32;
       rscv_reg->PC += 4;
       break;
     case 4: // DIV 
@@ -206,13 +202,9 @@ void helper_extension (uint32_t word, RiscvRegister_t* rscv_reg) {
 
 //0110011
 void type_R (uint32_t word, RiscvRegister_t* rscv_reg) {
-  uint32_t rs1;
-  uint32_t rs2;
-  uint32_t rd;
-
-  rs2 = get_rs2(word);
-  rd = get_rd(word);
-  rs1 = get_rs1(word);
+  uint32_t rs2 = get_rs2(word);
+  uint32_t rd = get_rd(word);
+  uint32_t rs1 = get_rs1(word);
   uint32_t funct3 = get_funct3(word);
   uint32_t funct7 = get_funct7(word);
 
@@ -226,13 +218,13 @@ void type_R (uint32_t word, RiscvRegister_t* rscv_reg) {
         rscv_reg->rg[rd] = rscv_reg->rg[rs1] - rscv_reg->rg[rs2];
         rscv_reg->PC += 4;
       }
-      // printf("ADD rg[rd]: %lli\n", rscv_reg->rg[rd]);
+      // printf("ADD rg[rd]: %i\n", rscv_reg->rg[rd]);
       break;
     case 1: // SLL
       // printf("SLL\n");
       rscv_reg->rg[rd] = rscv_reg->rg[rs1] << rscv_reg->rg[rs2];
       rscv_reg->PC += 4;
-      // printf("rg[rd]: %lli\n", rscv_reg->rg[rd]);
+      // printf("rg[rd]: %i\n", rscv_reg->rg[rd]);
       break;
     case 2: // SLT
       // set less than if rs1 < rs2 else 0
@@ -255,7 +247,7 @@ void type_R (uint32_t word, RiscvRegister_t* rscv_reg) {
         rscv_reg->rg[rd] = 0;
         rscv_reg->PC += 4;
       }
-      // printf("rg[rd]: %lli\n", rscv_reg->rg[rd]);
+      // printf("rg[rd]: %i\n", rscv_reg->rg[rd]);
       break;
     case 4: // XOR
       // Exclusive or
@@ -288,17 +280,10 @@ void type_R (uint32_t word, RiscvRegister_t* rscv_reg) {
 
 // 1100011
 void type_B (uint32_t word, RiscvRegister_t* rscv_reg) {
-  uint32_t rs1;
-  uint32_t rs2;
-  // uint32_t rd;
-  int32_t imm;
-
-  rs1 = get_rs1(word);
-  rs2 = get_rs2(word);
-  // rd = get_rd(word);
-  imm = get_imm_B(word);
-
+  uint32_t rs1 = get_rs1(word);
+  uint32_t rs2 = get_rs2(word);
   uint32_t funct3 = get_funct3(word);
+  int32_t imm = get_imm_B(word);
 
   switch(funct3) {
     case 0: // BEQ
@@ -359,22 +344,18 @@ void type_B (uint32_t word, RiscvRegister_t* rscv_reg) {
 
 // 0000011
 void type_I (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem) {
-  uint32_t rs1;
-  uint32_t rd;
-  int32_t imm;
+  uint32_t rs1 = get_rs1(word);
+  uint32_t rd = get_rd(word);
+  uint32_t funct3 = get_funct3(word);
 
+  int32_t imm = get_imm_I(word);
+  int32_t address = rscv_reg->rg[rs1] + imm;
+  
   int8_t byte;
   int16_t halfword;
   int32_t full_word;
   uint8_t u_byte;
   uint16_t u_halfword;
-
-  rs1 = get_rs1(word);
-  rd = get_rd(word);
-  imm = get_imm_I(word);
-
-  uint32_t address = rscv_reg->rg[rs1] + imm;
-  uint32_t funct3 = get_funct3(word);
 
   switch (funct3) {
     case 0: // LB
@@ -413,17 +394,11 @@ void type_I (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem) {
 
 //0010011
 void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg) {
-  uint32_t funct3;
-  uint32_t rs1;
-  uint32_t rd;
-  int32_t imm;
-  uint32_t funct7;
-
-  funct7 = get_funct7(word);
-  funct3 = get_funct3(word);
-  rd = get_rd(word);
-  rs1 = get_rs1(word);
-  imm = get_imm_I(word);
+  uint32_t funct7 = get_funct7(word);
+  uint32_t funct3 = get_funct3(word);
+  uint32_t rd = get_rd(word);
+  uint32_t rs1 = get_rs1(word);
+  int32_t imm = get_imm_I(word);
 
   // Debug
   // printf("rs1: %u\n", rs1);
@@ -435,8 +410,8 @@ void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg) {
       // printf("ADDI\n"); // I-type
       rscv_reg->rg[rd] = rscv_reg->rg[rs1] + get_imm_I(word);
       rscv_reg->PC += 4;
-      // printf("R[RS1]==%lli\n", rscv_reg->rg[rs1]);
-      // printf("R[RD]==%lli\n", rscv_reg->rg[rd]);
+      // printf("R[RS1]==%i\n", rscv_reg->rg[rs1]);
+      // printf("R[RD]==%i\n", rscv_reg->rg[rd]);
       break;
     case 2: // SLTI
       // Set less than immediate signed
@@ -501,21 +476,16 @@ void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg) {
 
 //0100011
 void type_S (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem) {
-  uint32_t funct3;
-  uint32_t rs1;
-  uint32_t rs2;
-  int32_t imm;
+  uint32_t funct3 = get_funct3(word);
+  uint32_t rs1 = get_rs1(word);
+  uint32_t rs2 = get_rs2(word);
+  int32_t imm = get_imm_S(word);
+
+  int32_t address = rscv_reg->rg[rs1] + imm;
 
   int8_t byte;
   int16_t halfword;
   int32_t full_word;
-
-  funct3 = get_funct3(word);
-  rs1 = get_rs1(word);
-  rs2 = get_rs2(word);
-  imm = get_imm_S(word);
-
-  uint32_t address = rscv_reg->rg[rs1] + imm;
 
   switch (funct3) {
     case 0: // SB
@@ -538,7 +508,7 @@ void type_S (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem) {
       // store word in memory 
       // printf("SW\n");
       full_word = rscv_reg->rg[rs2];
-      // printf("SW Adress == %0x, IMM== %i, RS1==%i, RS2==%i, R[RS1]==%lli \n",address, imm, rs1, rs2, rscv_reg->rg[rs1] );
+      // printf("SW Adress == %0x, IMM== %i, RS1==%i, RS2==%i, R[RS1]==%i \n",address, imm, rs1, rs2, rscv_reg->rg[rs1] );
       memory_wr_w(mem, address, full_word);
       rscv_reg->PC += 4;
       break;
