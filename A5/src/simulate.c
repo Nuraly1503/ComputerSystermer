@@ -25,13 +25,15 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
   int32_t rg_rs1;
   int32_t ecall_val;
 
-  while (1) {
+  while (inst_cnt < 500) {
     // Read word (instruction set)
     word = memory_rd_w(mem, rscv_reg.PC);
 
     // Write to log
-    // fprintf(log_file, assembly_get(as, rscv_reg.PC));
-
+    if (log_file != NULL) {
+      fprintf(log_file, "%s\n", assembly_get(as, rscv_reg.PC));
+    }
+    
     // Decode instruction set
     opcode = get_opcode(word);
     rs1 = get_rs1(word);
