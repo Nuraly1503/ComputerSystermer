@@ -25,7 +25,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
   int32_t rg_rs1;
   int32_t ecall_val;
 
-  while (inst_cnt < 500) {
+  while (1) {
     // Read word (instruction set)
     word = memory_rd_w(mem, rscv_reg.PC);
 
