@@ -1,0 +1,24 @@
+
+sh.riscv:     file format elf32-littleriscv
+
+Contents of section .text:
+ 10074 97150000 9385c501 37560000 1306f684  ........7V......
+ 10084 2390c500 93683000 73000000           #....h0.s...    
+Contents of section .riscv.attributes:
+ 0000 41270000 00726973 63760001 1d000000  A'...riscv......
+ 0010 05727633 32693270 315f6d32 70305f7a  .rv32i2p1_m2p0_z
+ 0020 6d6d756c 31703000                    mmul1p0.        
+
+sh.riscv:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00010074 <_start>:
+   10074:	00001597          	auipc	a1,0x1
+   10078:	01c58593          	add	a1,a1,28 # 11090 <__BSS_END__>
+   1007c:	00005637          	lui	a2,0x5
+   10080:	84f60613          	add	a2,a2,-1969 # 484f <_start-0xb825>
+   10084:	00c59023          	sh	a2,0(a1)
+   10088:	00306893          	or	a7,zero,3
+   1008c:	00000073          	ecall
