@@ -33,15 +33,21 @@ typedef struct RiscvRegister {
   int32_t PC;  // Program counter: address of the next instruction
 } RiscvRegister_t;
 
+// Output log
+typedef struct Log {
+  char* instr;
+  int32_t addr;
+} Log_t;
+
 // Simuler RISC-V program i givet lager og fra given start adresse
 long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE *log_file);
 
 // Helper functions
-void helper_extension (uint32_t word, RiscvRegister_t* rscv_reg);
-void type_R (uint32_t word, RiscvRegister_t* rscv_reg);
-void type_B (uint32_t word, RiscvRegister_t* rscv_reg);
-void type_I (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem);
-void type_S (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem);
-void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg);
+void helper_extension (uint32_t word, RiscvRegister_t* rscv_reg, Log_t* log);
+void type_R (uint32_t word, RiscvRegister_t* rscv_reg, Log_t* log);
+void type_B (uint32_t word, RiscvRegister_t* rscv_reg, Log_t* log);
+void type_I (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem, Log_t* log);
+void type_S (uint32_t word, RiscvRegister_t* rscv_reg, struct memory *mem, Log_t* log);
+void type_I2 (uint32_t word, RiscvRegister_t* rscv_reg, Log_t* log);
 
 #endif
