@@ -1,0 +1,20 @@
+bash-3.2$ time ./sim-0.10.0-macOS radix_1.0.dis -- c.in c.out
+
+Simulated 234316802 instructions in 3021378 host ticks (77.552958 MIPS)
+In 408592963 simulated clock cycles, CPI = 1.743763
+
+real    0m3.032s
+user    0m3.011s
+sys     0m0.015s
+
+
+
+
+bash-3.2$ time ./sim-0.10.0-macOS radix_ref.dis -- c.in c.out
+
+Simulated 309224246 instructions in 3887026 host ticks (79.552914 MIPS)
+In 491435084 simulated clock cycles, CPI = 1.589251
+
+real    0m3.899s
+user    0m3.876s
+sys     0m0.018s

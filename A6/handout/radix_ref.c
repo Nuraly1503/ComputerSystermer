@@ -28,7 +28,7 @@ inline int bit_range(int bit_pos_high, int bit_pos_low) { return (higher_bits(bi
 
 
 // Add a number to the radix tree
-static inline void add_number(int number) {
+void add_number(int number) {
   struct node** parent = &tree;
   // Tree may branch on each bit, starting from the most significant.
   for (int bit_pos = MAX_BITS; bit_pos >= 1; bit_pos >>= 1) {
@@ -88,8 +88,7 @@ static inline void add_number(int number) {
 }
 
 // Take out members of subtree. Fill into 'buffer' until we reach 'end' of it
-static inline int* take_numbers_2(struct node** parent, int* buffer, int* end) {
-  // print_string("take_numbers_2\n");
+int* take_numbers_2(struct node** parent, int* buffer, int* end) {
   struct node* nptr = *parent;
   if (nptr) {
     // we have a node:
